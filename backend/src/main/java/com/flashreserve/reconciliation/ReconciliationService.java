@@ -9,6 +9,7 @@ import com.flashreserve.reservation.ReservationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -52,6 +53,13 @@ public class ReconciliationService {
                                        List<Finding> findings, boolean consistent) {
     }
 
+    /**
+     * Runs in a REPEATABLE READ transaction so the pool counters and the
+     * reservation rows are read from ONE consistent snapshot — a concurrent
+     * expiration or confirm commit cannot make the report contradict itself
+     * (e.g. old pool counter + new reservation state).
+     */
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
     public ReconciliationReport reconcile() {
         List<Finding> findings = new ArrayList<>();
         List<InventoryPool> pools = poolRepository.findAll();

@@ -1,11 +1,6 @@
 spring:
   application:
     name: flashreserve
-  task:
-    scheduling:
-      # Tests exercise the expiration job / outbox synchronously; the test
-      # profile sets this false to avoid racing assertions.
-      enabled: ${FLASHRESERVE_SCHEDULING_ENABLED:true}
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/flashreserve}
     username: ${SPRING_DATASOURCE_USERNAME:flashreserve}

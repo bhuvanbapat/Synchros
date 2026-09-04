@@ -38,8 +38,8 @@ public abstract class PostgresIntegrationBase {
                     + "org.springframework.boot.data.redis.autoconfigure.DataRedisRepositoriesAutoConfiguration");
         registry.add("flashreserve.kafka.enabled", () -> "false");
         // Tests drive expiration/outbox logic synchronously; disable the
-        // background schedulers so they never race with assertions.
-        registry.add("spring.task.scheduling.enabled", () -> "false");
+        // background jobs so they never race with assertions.
+        registry.add("flashreserve.jobs.enabled", () -> "false");
         registry.add("spring.flyway.clean-disabled", () -> "false");
         registry.add("spring.datasource.hikari.maximum-pool-size", () -> "12");
     }

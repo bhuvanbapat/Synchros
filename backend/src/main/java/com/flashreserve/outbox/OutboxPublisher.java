@@ -2,6 +2,7 @@ package com.flashreserve.outbox;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -26,6 +27,7 @@ import java.util.List;
  */
 @Component
 @Conditional(com.flashreserve.kafka.ConditionalOnKafkaEnabled.class)
+@ConditionalOnProperty(name = "flashreserve.jobs.enabled", havingValue = "true", matchIfMissing = true)
 public class OutboxPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxPublisher.class);

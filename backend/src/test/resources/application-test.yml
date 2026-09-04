@@ -4,10 +4,6 @@ spring:
       - org.springframework.boot.kafka.autoconfigure.KafkaAutoConfiguration
       - org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration
       - org.springframework.boot.data.redis.autoconfigure.DataRedisRepositoriesAutoConfiguration
-  task:
-    scheduling:
-      # Tests drive expiration/outbox synchronously; no background races.
-      enabled: false
   datasource:
     url: jdbc:postgresql://localhost:5432/flashreserve_test
     username: flashreserve
@@ -20,4 +16,6 @@ spring:
 
 flashreserve:
   kafka:
+    enabled: false
+  jobs:
     enabled: false

@@ -115,6 +115,31 @@ class PaymentFlowIT extends PostgresIntegrationBase {
                 "user 999 must not read user 1's order");
     }
 
+    @Test
+    void lateCallbackAfterOrderExpiredIsAbsorbedNot500() {
+        var setup = holdAndOrder();
+
+        // Simulate the hold TTL lapsing before the gateway outcome arrives:
+        // expire the reservation (releases inventory), which the expiration
+        // path pairs with closing the open order.
+        var sys = reservationService.getByPublicIdForUserForSystem(
+                setup.reservation().getPublicId());
+        assertTrue(reservationService.expireOne(sys));
+        assertTrue(orderService.expireIfPending(setup.order().getId()));
+
+        // The gateway outcome now arrives for a terminal order: must be
+        // absorbed (no exception, no state change, no inventory mutation).
+        Order result = assertDoesNotThrow(() -> orderService.applyPaymentResult(
+                setup.order().getPublicId(), setup.userId(),
+                "ref-late-1", MockPaymentGateway.Outcome.SUCCESS));
+
+        assertEquals(Order.State.EXPIRED, result.getState(),
+                "expired order must stay EXPIRED on late callback");
+        assertEquals(setup.units(),
+                poolRepo.findById(setup.pool().getId()).orElseThrow().getAvailable(),
+                "late callback must not touch inventory (already released by expiry)");
+    }
+
     // ---- fixture ----
 
     record Setup(InventoryPool pool, Reservation reservation, Order order,

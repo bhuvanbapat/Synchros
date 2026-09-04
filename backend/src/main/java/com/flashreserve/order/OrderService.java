@@ -138,6 +138,33 @@ public class OrderService {
                     "Order belongs to another user");
         }
 
+        // Late arrival: the order already left PENDING_PAYMENT (e.g. the hold
+        // TTL lapsed and the expiration job closed the order) before the
+        // gateway outcome arrived. The charge is acknowledged but has NO
+        // business effect: payment is marked TIMED_OUT (a real deployment
+        // would trigger a refund), the attempt is recorded, and the current
+        // order state is returned — never a 500.
+        if (order.getState() != Order.State.PENDING_PAYMENT) {
+            Payment open = paymentRepository.findByOrderId(order.getId()).stream()
+                    .filter(p -> p.getState() == Payment.State.INITIATED)
+                    .findFirst().orElse(null);
+            if (open != null) {
+                open.complete(Payment.State.TIMED_OUT, providerRef, Instant.now());
+                attemptRepository.save(new PaymentAttempt(open.getId(),
+                        "LATE_CALLBACK", providerRef));
+            } else {
+                Payment any = paymentRepository.findByOrderId(order.getId()).stream()
+                        .findFirst().orElse(null);
+                if (any != null) {
+                    attemptRepository.save(new PaymentAttempt(any.getId(),
+                            "DUPLICATE_CALLBACK", providerRef));
+                }
+            }
+            log.info("late payment callback absorbed order={} state={} ref={}",
+                    orderPublicId, order.getState(), providerRef);
+            return order;
+        }
+
         Payment payment = paymentRepository
                 .findByOrderId(order.getId()).stream()
                 .filter(p -> p.getState() == Payment.State.INITIATED)
