@@ -1,0 +1,81 @@
+spring:
+  application:
+    name: flashreserve
+  task:
+    scheduling:
+      # Tests exercise the expiration job / outbox synchronously; the test
+      # profile sets this false to avoid racing assertions.
+      enabled: ${FLASHRESERVE_SCHEDULING_ENABLED:true}
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/flashreserve}
+    username: ${SPRING_DATASOURCE_USERNAME:flashreserve}
+    password: ${SPRING_DATASOURCE_PASSWORD:flashreserve_local_dev}
+    hikari:
+      maximum-pool-size: 20
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: flashreserve
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+
+server:
+  port: ${SERVER_PORT:8081}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+  metrics:
+    tags:
+      application: flashreserve
+
+logging:
+  level:
+    com.flashreserve: ${LOGGING_LEVEL_COM_FLASHRESERVE:INFO}
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%X{requestId:-}] [%thread] %logger{36} - %msg%n"
+
+flashreserve:
+  # Background jobs (expiration scan, outbox drain). Tests exercise these
+  # synchronously, so they are disabled in the test profile to avoid racing
+  # with assertions (see application-test.yml).
+  scheduling-enabled: ${FLASHRESERVE_SCHEDULING_ENABLED:true}
+  hold-duration-seconds: ${HOLD_DURATION_SECONDS:120}
+  expiration:
+    scan-interval-ms: ${EXPIRATION_SCAN_INTERVAL_MS:1000}
+    batch-size: ${EXPIRATION_BATCH_SIZE:100}
+  rate-limit:
+    reservations-per-minute: ${RATE_LIMIT_RESERVATIONS_PER_MINUTE:30}
+    burst: ${RATE_LIMIT_BURST:10}
+  outbox:
+    poll-interval-ms: ${OUTBOX_POLL_INTERVAL_MS:500}
+    max-retries: ${OUTBOX_MAX_RETRIES:10}
+  payment:
+    success-weight: ${PAYMENT_SUCCESS_WEIGHT:0.85}
+    failure-weight: ${PAYMENT_FAILURE_WEIGHT:0.10}
+    timeout-weight: ${PAYMENT_TIMEOUT_WEIGHT:0.05}

@@ -1,0 +1,32 @@
+# env / secrets
+.env
+*.env
+!.env.example
+
+# build outputs
+backend/target/
+frontend/dist/
+frontend/node_modules/
+*.class
+*.jar
+!backend/.mvn/wrapper/*.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# OS
+Thumbs.db
+.DS_Store
+
+# logs & test artifacts
+*.log
+load-tests/results/
+backend/logs/
+
+# graphify output (dev-time, regenerable)
+graphify-out/
