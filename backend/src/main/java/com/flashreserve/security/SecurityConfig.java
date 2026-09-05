@@ -74,7 +74,15 @@ public class SecurityConfig {
                     res.setContentType("application/json");
                     res.getWriter().write(
                             "{\"code\":\"UNAUTHORIZED\",\"message\":\"Authentication required\"}");
-                }));
+                }))
+                .exceptionHandling(eh -> eh
+                        .accessDeniedHandler((req, res, ex) -> {
+                            // Same structured error model as the rest of the API.
+                            res.setStatus(HttpStatus.FORBIDDEN.value());
+                            res.setContentType("application/json");
+                            res.getWriter().write(
+                                    "{\"code\":\"FORBIDDEN\",\"message\":\"You do not have access to this resource\"}");
+                        }));
         return http.build();
     }
 

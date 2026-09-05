@@ -22,11 +22,15 @@ jobs:
 
       - name: Build & test (Testcontainers)
         working-directory: backend
-        run: ./mvnw --batch-mode test
+        run: |
+          chmod +x mvnw
+          ./mvnw --batch-mode test
 
       - name: Package (verify)
         working-directory: backend
-        run: ./mvnw --batch-mode -DskipTests package
+        run: |
+          chmod +x mvnw
+          ./mvnw --batch-mode -DskipTests package
 
       - name: Upload test reports on failure
         if: failure()
