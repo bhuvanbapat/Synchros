@@ -123,6 +123,7 @@ cd frontend && npm test -- --run --pool=threads
 - [docs/DEMO.md](docs/DEMO.md) — scripted walkthrough
 - [docs/RESUME_NOTES.md](docs/RESUME_NOTES.md) — resume/interview material
 - [docs/INTERVIEW_GUIDE.md](docs/INTERVIEW_GUIDE.md) — deep-dive Q&A
+- [docs/LIMITATIONS.md](docs/LIMITATIONS.md) — **brutal, honest limitations** (read this before production claims)
 - [docs/adr/](docs/adr/) — ADR-001 … ADR-010
 - [BUILD_STATUS.md](BUILD_STATUS.md) — completion checklist
 - [CHANGELOG.md](CHANGELOG.md) · [CONTRIBUTING.md](CONTRIBUTING.md)

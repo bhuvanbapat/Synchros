@@ -94,6 +94,9 @@ boundaries table.
 
 ## Limitations (stated plainly)
 
+See [LIMITATIONS.md](LIMITATIONS.md) for the complete, unvarnished list —
+the summary version:
+
 - HTTP Basic auth, TLS assumed external (portfolio scope; ownership checks
   are auth-mechanism-agnostic).
 - Webhook HMAC verification documented, not simulated (no real PSP).
