@@ -1,0 +1,4 @@
+# unix scripts must keep LF (CRLF breaks the shebang on linux runners)
+*.sh text eol=lf
+backend/mvnw text eol=lf
+mvnw text eol=lf

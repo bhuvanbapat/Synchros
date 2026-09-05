@@ -1,0 +1,22 @@
+#!/bin/sh
+# FlashReserve Maven wrapper (unix) — mirrors mvnw.cmd
+# Licensed under Apache License 2.0 (standard Spring Boot wrapper layout)
+set -e
+
+basedir=$(cd "$(dirname "$0")" && pwd -P)
+
+# Resolve java executable
+if [ -n "$JAVA_HOME" ]; then
+  JAVACMD="$JAVA_HOME/bin/java"
+else
+  JAVACMD=$(command -v java)
+fi
+
+if [ ! -x "$JAVACMD" ] && [ ! -e "$JAVACMD" ]; then
+  echo "Error: JAVA_HOME not set and no java found on PATH." >&2
+  exit 1
+fi
+
+exec "$JAVACMD" \
+  -classpath "$basedir/.mvn/wrapper/maven-wrapper.jar" \
+  org.apache.maven.wrapper.MavenWrapperMain "$@"
