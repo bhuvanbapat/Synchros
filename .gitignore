@@ -30,3 +30,5 @@ backend/logs/
 
 # graphify output (dev-time, regenerable)
 graphify-out/
+
+# k6 binary (68MB) — download per README, never commit
