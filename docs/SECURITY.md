@@ -29,8 +29,8 @@ Changing an ID in a URL yields 403 `FORBIDDEN`, not the other user's data
 (tested: ApiSecurityIT — bob cannot read alice's reservation).
 
 Public UUIDs everywhere (never sequential DB ids) — enumeration leaks no
-information. `inventory_item`'s raw-id endpoint was replaced with UUID
-lookup during the audit.
+information. The inventory lookup-by-id endpoint (which originally took a
+sequential DB id) was replaced with UUID lookup during the audit.
 
 ## Injection safety
 
