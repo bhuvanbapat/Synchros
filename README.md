@@ -110,6 +110,8 @@ cd frontend && npm test -- --run --pool=threads
 
 ## Documentation
 
+- **[PROJECT_REFERENCE.md](PROJECT_REFERENCE.md)** — ultra-detailed inventory of everything in the project
+- **[TESTING.md](TESTING.md)** — complete how-to-test guide: automated suites, manual E2E, benchmarks, failure drills
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — system design, boundaries, diagrams
 - [docs/CONCURRENCY.md](docs/CONCURRENCY.md) — oversell prevention, lock strategy, isolation
 - [docs/DATABASE.md](docs/DATABASE.md) — schema, migrations, indexes, transactions
