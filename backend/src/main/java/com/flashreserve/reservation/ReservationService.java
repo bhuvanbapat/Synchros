@@ -53,6 +53,7 @@ public class ReservationService {
     private final InventoryPoolRepository poolRepository;
     private final OutboxService outboxService;
     private final AuditService auditService;
+    private final com.flashreserve.metrics.FlashMetrics metrics;
     private final FlashReserveProperties props;
 
     public ReservationService(ReservationRepository reservationRepository,
@@ -60,12 +61,14 @@ public class ReservationService {
                               InventoryPoolRepository poolRepository,
                               OutboxService outboxService,
                               AuditService auditService,
+                              com.flashreserve.metrics.FlashMetrics metrics,
                               FlashReserveProperties props) {
         this.reservationRepository = reservationRepository;
         this.lockRepository = lockRepository;
         this.poolRepository = poolRepository;
         this.outboxService = outboxService;
         this.auditService = auditService;
+        this.metrics = metrics;
         this.props = props;
     }
 
@@ -148,8 +151,18 @@ public class ReservationService {
             return locked;
         }
 
-        // transitionTo throws on illegal transitions; a throw aborts the tx.
-        locked.transitionTo(Reservation.State.CONFIRMED, Instant.now());
+        // Map the illegal-transition guard to a domain error: a confirm that
+        // races a lost expiry must surface RESERVATION_EXPIRED (409), not an
+        // unhandled IllegalStateException (500). A throw still aborts the tx.
+        try {
+            locked.transitionTo(Reservation.State.CONFIRMED, Instant.now());
+        } catch (IllegalStateException e) {
+            throw new DomainException(
+                    locked.getState() == Reservation.State.EXPIRED
+                            ? DomainException.ErrorCode.RESERVATION_EXPIRED
+                            : DomainException.ErrorCode.INVALID_STATE_TRANSITION,
+                    "Cannot confirm reservation in state " + locked.getState());
+        }
 
         outboxService.append("ReservationConfirmed", "reservation",
                 locked.getPublicId().toString(),
@@ -185,7 +198,13 @@ public class ReservationService {
             return locked;
         }
 
-        locked.transitionTo(Reservation.State.CANCELLED, Instant.now());
+        try {
+            locked.transitionTo(Reservation.State.CANCELLED, Instant.now());
+        } catch (IllegalStateException e) {
+            throw new DomainException(
+                    DomainException.ErrorCode.INVALID_STATE_TRANSITION,
+                    "Cannot cancel reservation in state " + locked.getState());
+        }
         releaseInventory(locked);
 
         outboxService.append("ReservationCancelled", "reservation",
@@ -228,6 +247,7 @@ public class ReservationService {
                         "quantity", reservation.getQuantity()));
         auditService.record("system:expiration", "RESERVATION_EXPIRED",
                 "reservation", reservation.getPublicId().toString(), java.util.Map.of());
+        metrics.holdExpired();
         log.info("reservation expired id={}", reservation.getPublicId());
         return true;
     }
@@ -272,8 +292,8 @@ public class ReservationService {
     }
 
     public List<Reservation> findExpiredHeld(Instant cutoff, int limit) {
-        return reservationRepository
-                .findByStateAndHoldExpiresAtBefore(Reservation.State.HELD, cutoff)
-                .stream().limit(limit).toList();
+        return reservationRepository.findByStateAndHoldExpiresAtBefore(
+                Reservation.State.HELD, cutoff,
+                org.springframework.data.domain.Limit.of(limit));
     }
 }

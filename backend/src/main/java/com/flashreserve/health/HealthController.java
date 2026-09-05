@@ -45,11 +45,18 @@ public class HealthController {
     private String checkRedis() {
         var redis = redisProvider.getIfAvailable();
         if (redis == null) return "DISABLED";
+        var connection = redis.getConnectionFactory().getConnection();
         try {
-            redis.getConnectionFactory().getConnection().ping();
+            connection.ping();
             return "UP";
         } catch (Exception e) {
             return "DOWN";
+        } finally {
+            // Return the borrowed connection to the pool — never close() a
+            // pooled connection directly, and never leave it out: a health
+            // endpoint must not cause the outage it watches.
+            org.springframework.data.redis.core.RedisConnectionUtils
+                    .releaseConnection(connection, redis.getConnectionFactory());
         }
     }
 }

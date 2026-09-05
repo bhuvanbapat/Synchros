@@ -10,6 +10,4 @@ public interface AnalyticsRepository extends JpaRepository<AnalyticsEvent, Long>
     @Query("SELECT a.eventType, COUNT(a) FROM AnalyticsEvent a " +
            "WHERE a.eventCategory = :category GROUP BY a.eventType")
     List<Object[]> countByCategoryGroupedByType(String category);
-
-    List<AnalyticsEvent> findTop100ByOrderByCreatedAtDesc();
 }

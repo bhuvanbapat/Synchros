@@ -46,8 +46,8 @@ const EVENT = {
   state: 'ON_SALE',
 };
 const POOLS = [
-  { id: 1, publicId: 'p1', eventId: 1, section: 'FLOOR', total: 10, available: 10 },
-  { id: 2, publicId: 'p2', eventId: 1, section: 'BALCONY', total: 500, available: 0 },
+  { id: 'p1', section: 'FLOOR', total: 10, available: 10 },
+  { id: 'p2', section: 'BALCONY', total: 500, available: 0 },
 ];
 const RESERVATION = {
   id: 'res-1',

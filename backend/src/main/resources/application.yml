@@ -6,7 +6,7 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME:flashreserve}
     password: ${SPRING_DATASOURCE_PASSWORD:flashreserve_local_dev}
     hikari:
-      maximum-pool-size: 20
+      maximum-pool-size: 40
   jpa:
     hibernate:
       ddl-auto: validate
@@ -36,6 +36,11 @@ spring:
 server:
   port: ${SERVER_PORT:8081}
   shutdown: graceful
+  tomcat:
+    threads:
+      max: 200
+    max-connections: 8192
+    accept-count: 1000
 
 management:
   endpoints:

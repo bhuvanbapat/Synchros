@@ -10,6 +10,7 @@ import com.flashreserve.payment.PaymentAttempt;
 import com.flashreserve.payment.PaymentAttemptRepository;
 import com.flashreserve.payment.PaymentRepository;
 import com.flashreserve.reservation.Reservation;
+import com.flashreserve.reservation.ReservationLockRepository;
 import com.flashreserve.reservation.ReservationRepository;
 import com.flashreserve.reservation.ReservationService;
 import org.slf4j.Logger;
@@ -50,6 +51,7 @@ public class OrderService {
     private final PaymentAttemptRepository attemptRepository;
     private final ReservationService reservationService;
     private final ReservationRepository reservationRepository;
+    private final ReservationLockRepository reservationLockRepository;
     private final OutboxService outboxService;
     private final AuditService auditService;
 
@@ -59,6 +61,7 @@ public class OrderService {
                         PaymentAttemptRepository attemptRepository,
                         ReservationService reservationService,
                         ReservationRepository reservationRepository,
+                        ReservationLockRepository reservationLockRepository,
                         OutboxService outboxService,
                         AuditService auditService) {
         this.orderRepository = orderRepository;
@@ -67,14 +70,23 @@ public class OrderService {
         this.attemptRepository = attemptRepository;
         this.reservationService = reservationService;
         this.reservationRepository = reservationRepository;
+        this.reservationLockRepository = reservationLockRepository;
         this.outboxService = outboxService;
         this.auditService = auditService;
     }
 
     @Transactional
     public Order createOrderForReservation(UUID reservationPublicId, Long userId) {
-        Reservation reservation = reservationService
-                .getByPublicIdForUser(reservationPublicId, userId);
+        // Lock the reservation row FIRST: serializes against confirm/cancel
+        // AND the expiration job, so the HELD + TTL checks below are made
+        // on a state that cannot change underneath this transaction.
+        // (Without the lock, the expiry job could release inventory between
+        // the check and the order INSERT — an orphaned PENDING_PAYMENT
+        // order on an EXPIRED reservation.)
+        Reservation reservation = reservationLockRepository
+                .lockByPublicIdAndOwner(reservationPublicId, userId)
+                .orElseThrow(() -> new NotFoundException(
+                        "Reservation not found: " + reservationPublicId));
 
         if (reservation.getState() == Reservation.State.CONFIRMED) {
             throw new DomainException(
@@ -234,10 +246,13 @@ public class OrderService {
                         Map.of("providerRef", providerRef));
             }
             case TIMEOUT -> {
-                payment.complete(Payment.State.TIMED_OUT, providerRef, now);
+                // A gateway timeout is NOT a terminal outcome — the charge
+                // may still complete and call back. The payment stays
+                // INITIATED (retryable: a client retry or a late webhook
+                // finds the open attempt and applies the definitive
+                // outcome); the hold TTL remains the safety net that
+                // eventually releases inventory if nothing arrives.
                 attemptRepository.save(new PaymentAttempt(payment.getId(), "TIMEOUT", providerRef));
-                // Timeout leaves order PENDING_PAYMENT — the hold TTL is the
-                // safety net; the expiration job releases inventory later.
                 outboxService.append("PaymentTimedOut", "payment",
                         payment.getPublicId().toString(),
                         Map.of("orderId", order.getPublicId().toString()));

@@ -5,6 +5,7 @@ import com.flashreserve.catalog.CatalogService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -13,7 +14,7 @@ import java.util.UUID;
  * Inventory read endpoints. Availability is served through the cache-aside
  * wrapper with a short TTL — stale values are display hints only; the
  * reservation conditional UPDATE is the authority (docs/CONCURRENCY.md).
- * Endpoints address events by PUBLIC UUID (no sequential DB ids leak).
+ * Endpoints address pools by PUBLIC UUID (no sequential DB ids leak).
  */
 @RestController
 @RequestMapping("/api/inventory")
@@ -39,21 +40,20 @@ public class InventoryController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> byId(@PathVariable Long id) {
-        return poolRepository.findById(id)
+    public ResponseEntity<Map<String, Object>> byId(@PathVariable UUID id) {
+        return poolRepository.findByPublicId(id)
                 .map(this::view)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     private Map<String, Object> view(InventoryPool p) {
-        return Map.of(
-                "id", p.getId(),
-                "publicId", p.getPublicId().toString(),
-                "eventId", p.getEventId(),
-                "section", p.getSection(),
-                "total", p.getTotal(),
-                "available", cachedAvailable(p));
+        Map<String, Object> v = new HashMap<>();
+        v.put("id", p.getPublicId().toString());
+        v.put("section", p.getSection());
+        v.put("total", p.getTotal());
+        v.put("available", cachedAvailable(p));
+        return v;
     }
 
     private int cachedAvailable(InventoryPool p) {

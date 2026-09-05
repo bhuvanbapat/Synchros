@@ -16,6 +16,7 @@ public class FlashMetrics {
     private final Counter inventoryUnavailable;
     private final Counter idempotentReplays;
     private final Counter expiredHolds;
+    private final Counter reservationFailures;
 
     public FlashMetrics(MeterRegistry registry) {
         this.reservationTimer = Timer.builder("flashreserve_reservation_duration")
@@ -25,6 +26,8 @@ public class FlashMetrics {
                 .tag("outcome", "success").register(registry);
         this.inventoryUnavailable = Counter.builder("flashreserve_reservation_outcome")
                 .tag("outcome", "inventory_unavailable").register(registry);
+        this.reservationFailures = Counter.builder("flashreserve_reservation_outcome")
+                .tag("outcome", "error").register(registry);
         this.idempotentReplays = Counter.builder("flashreserve_idempotent_replays")
                 .register(registry);
         this.expiredHolds = Counter.builder("flashreserve_expired_holds")
@@ -41,6 +44,10 @@ public class FlashMetrics {
 
     public void inventoryUnavailable() {
         inventoryUnavailable.increment();
+    }
+
+    public void reservationError() {
+        reservationFailures.increment();
     }
 
     public void idempotentReplay() {

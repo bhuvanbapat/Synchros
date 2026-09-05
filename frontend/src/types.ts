@@ -7,9 +7,7 @@ export interface EventDto {
 }
 
 export interface InventoryPool {
-  id: number;
-  publicId: string;
-  eventId: number;
+  id: string;
   section: string;
   total: number;
   available: number;

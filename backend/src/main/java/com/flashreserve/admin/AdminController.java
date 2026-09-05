@@ -59,16 +59,20 @@ public class AdminController {
     public Map<String, Object> metrics() {
         Map<String, Object> m = new HashMap<>();
 
-        List<Map<String, Object>> pools = poolRepository.findAll().stream()
-                .map(this::poolView).toList();
-        m.put("pools", pools);
+        List<InventoryPool> pools = poolRepository.findAll();
+        Map<Long, Map<String, int[]>> heldSoldByEvent = heldSoldByEvent(pools);
+        m.put("pools", pools.stream()
+                .map(p -> poolView(p, heldSoldByEvent)).toList());
 
+        // One grouped query instead of a full-table scan per state — the
+        // ops dashboard must stay cheap even mid-flash-sale.
         Map<String, Long> reservationCounts = new HashMap<>();
         for (Reservation.State s : Reservation.State.values()) {
-            reservationCounts.put(s.name(),
-                    reservationRepository.findAll().stream()
-                            .filter(r -> r.getState() == s).count());
+            reservationCounts.put(s.name(), 0L);
         }
+        reservationRepository.countByStateGrouped()
+                .forEach(row -> reservationCounts.put(String.valueOf(row[0]),
+                        ((Number) row[1]).longValue()));
         m.put("reservations", reservationCounts);
 
         Map<String, Object> outbox = new HashMap<>();
@@ -151,23 +155,44 @@ public class AdminController {
         return m;
     }
 
-    private Map<String, Object> poolView(InventoryPool p) {
+    /**
+     * held/sold units per pool, computed with ONE grouped query per event
+     * (not one full-table scan per pool — the old N+1 melted under load).
+     * All state is local to this request: no shared mutable fields.
+     */
+    private Map<Long, Map<String, int[]>> heldSoldByEvent(List<InventoryPool> pools) {
+        Map<Long, Map<String, int[]>> byEvent = new HashMap<>();
+        for (Long eventId : pools.stream().map(InventoryPool::getEventId).distinct().toList()) {
+            Map<String, int[]> perSection = new HashMap<>();
+            reservationRepository
+                    .sumQuantityByEventGroupedBySectionAndState(eventId,
+                            List.of(Reservation.State.HELD, Reservation.State.CONFIRMED))
+                    .forEach(row -> {
+                        String section = (String) row[0];
+                        boolean confirmed = "CONFIRMED".equals(String.valueOf(row[1]));
+                        int units = ((Number) row[2]).intValue();
+                        int[] heldSold = perSection.computeIfAbsent(section,
+                                k -> new int[2]);
+                        heldSold[confirmed ? 1 : 0] = units;
+                    });
+            byEvent.put(eventId, perSection);
+        }
+        return byEvent;
+    }
+
+    private Map<String, Object> poolView(InventoryPool p,
+                                         Map<Long, Map<String, int[]>> heldSoldByEvent) {
+        int[] heldSold = heldSoldByEvent
+                .getOrDefault(p.getEventId(), Map.of())
+                .getOrDefault(p.getSection(), new int[2]);
         Map<String, Object> v = new HashMap<>();
         v.put("id", p.getPublicId().toString());
         v.put("eventId", p.getEventId());
         v.put("section", p.getSection());
         v.put("total", p.getTotal());
         v.put("available", p.getAvailable());
-        v.put("held", p.getTotal() - p.getAvailable() - soldForPool(p));
-        v.put("sold", soldForPool(p));
+        v.put("held", heldSold[0]);
+        v.put("sold", heldSold[1]);
         return v;
-    }
-
-    private int soldForPool(InventoryPool p) {
-        return reservationRepository.findByEventId(p.getEventId()).stream()
-                .filter(r -> r.getSection().equals(p.getSection()))
-                .filter(r -> r.getState() == Reservation.State.CONFIRMED)
-                .mapToInt(Reservation::getQuantity)
-                .sum();
     }
 }

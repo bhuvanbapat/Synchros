@@ -106,15 +106,14 @@ public class ReconciliationService {
         }
 
         // Orphaned orders: PENDING_PAYMENT on a non-HELD reservation.
-        for (Order o : orderRepository.findAll()) {
-            if (o.getState() == Order.State.PENDING_PAYMENT) {
-                Reservation r = reservationRepository
-                        .findById(o.getReservationId()).orElse(null);
-                if (r != null && r.getState() != Reservation.State.HELD) {
-                    findings.add(new Finding("order=" + o.getPublicId(),
-                            "ORPHANED_PENDING_ORDER",
-                            "order PENDING_PAYMENT but reservation is " + r.getState()));
-                }
+        // Bounded query instead of scanning every order in the system.
+        for (Order o : orderRepository.findByState(Order.State.PENDING_PAYMENT)) {
+            Reservation r = reservationRepository
+                    .findById(o.getReservationId()).orElse(null);
+            if (r != null && r.getState() != Reservation.State.HELD) {
+                findings.add(new Finding("order=" + o.getPublicId(),
+                        "ORPHANED_PENDING_ORDER",
+                        "order PENDING_PAYMENT but reservation is " + r.getState()));
             }
         }
 

@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Conditional;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.util.List;
@@ -24,6 +24,15 @@ import java.util.List;
  *  - Kafka producer idempotence is enabled, so broker-side duplicates from
  *    producer retries are deduplicated; consumers are additionally
  *    idempotent (processed_event table).
+ *
+ * Transaction boundaries: NO Kafka I/O ever happens inside a DB transaction.
+ * The batch is fetched in one short read-only transaction; publication is
+ * plain I/O; each row's state change is a separate short transaction by id
+ * (programmatic TransactionTemplate — annotation self-invocation from the
+ * scheduler method would silently skip the proxy). The previous single
+ * @Transactional around the whole drain held a pooled connection open
+ * across up to 50 blocking Kafka sends: under broker outage it exhausted
+ * the pool and turned "Kafka down" into "site down".
  */
 @Component
 @Conditional(com.flashreserve.kafka.ConditionalOnKafkaEnabled.class)
@@ -35,23 +44,27 @@ public class OutboxPublisher {
     private final OutboxRepository outboxRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final FlashReserveTopics topics;
+    private final TransactionTemplate tx;
     private final int maxRetries;
 
     public OutboxPublisher(OutboxRepository outboxRepository,
                            KafkaTemplate<String, String> kafkaTemplate,
                            FlashReserveTopics topics,
+                           TransactionTemplate tx,
                            com.flashreserve.config.FlashReserveProperties props) {
         this.outboxRepository = outboxRepository;
         this.kafkaTemplate = kafkaTemplate;
         this.topics = topics;
+        this.tx = tx;
         this.maxRetries = props.getOutbox().getMaxRetries();
     }
 
     @Scheduled(fixedDelayString = "${flashreserve.outbox.poll-interval-ms:500}")
-    @Transactional
     public void publishPending() {
-        List<OutboxEvent> batch = outboxRepository.findPublishable(
-                org.springframework.data.domain.Limit.of(50));
+        List<OutboxEvent> batch = tx.execute(status ->
+                outboxRepository.findPublishable(
+                        org.springframework.data.domain.Limit.of(50)));
+        if (batch == null) return;
         for (OutboxEvent event : batch) {
             publishOne(event);
         }
@@ -61,18 +74,32 @@ public class OutboxPublisher {
         String topic = topics.topicFor(event.getEventType());
         String key = event.getAggregateId();
         try {
+            // Blocking send with NO transaction open. Producer idempotence
+            // (acks=all + enable.idempotence) makes this effectively
+            // at-most-once to the broker despite producer retries.
             kafkaTemplate.send(topic, key, wrap(event)).get();
-            event.markPublished();
+
+            tx.executeWithoutResult(status ->
+                    outboxRepository.findById(event.getId())
+                            .ifPresent(OutboxEvent::markPublished));
             log.debug("outbox published eventId={} topic={}", event.getEventId(), topic);
         } catch (Exception e) {
-            event.markFailed();
-            if (event.getRetryCount() >= maxRetries) {
-                event.markDead();
+            final int attemptsSoFar = event.getRetryCount();
+            final boolean dead = attemptsSoFar + 1 >= maxRetries;
+            tx.executeWithoutResult(status ->
+                    outboxRepository.findById(event.getId()).ifPresent(row -> {
+                        if (dead) {
+                            row.markDead();
+                        } else {
+                            row.markFailed();   // increments retry_count by 1
+                        }
+                    }));
+            if (dead) {
                 log.error("outbox event moved to DEAD eventId={} type={} after {} retries",
-                        event.getEventId(), event.getEventType(), event.getRetryCount());
+                        event.getEventId(), event.getEventType(), attemptsSoFar + 1);
             } else {
                 log.warn("outbox publish failed eventId={} attempt={} cause={}",
-                        event.getEventId(), event.getRetryCount(), e.getMessage());
+                        event.getEventId(), attemptsSoFar + 1, e.getMessage());
             }
         }
     }

@@ -19,26 +19,30 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     List<Reservation> findByEventId(Long eventId);
 
     /**
-     * Expiration scan: HELD reservations whose hold has lapsed.
-     * FOR UPDATE is added by the service via a locking repository query
-     * (see ReservationLockRepository) so the expiry job and a concurrent
-     * confirm() serialize on the reservation row.
+     * Expiration scan: HELD reservations whose hold has lapsed, bounded by
+     * limit AT THE QUERY (never fetch-unbounded-then-limit-in-memory — a
+     * backlog after an app restart must not make every scan a full scan).
+     * The state machine guard (plus the conditional expireIfHeld UPDATE)
+     * serializes the expiry job against a concurrent confirm().
      */
     List<Reservation> findByStateAndHoldExpiresAtBefore(Reservation.State state,
-                                                        Instant cutoff);
+                                                        Instant cutoff,
+                                                        org.springframework.data.domain.Limit limit);
+
+    /** Admin metrics: one grouped count query instead of N full scans. */
+    @Query("SELECT r.state, COUNT(r) FROM Reservation r GROUP BY r.state")
+    List<Object[]> countByStateGrouped();
+
+    /** Admin metrics: held/sold units per section for one event. */
+    @Query("SELECT r.section, r.state, COALESCE(SUM(r.quantity), 0) " +
+           "FROM Reservation r WHERE r.eventId = :eventId AND r.state IN :states " +
+           "GROUP BY r.section, r.state")
+    List<Object[]> sumQuantityByEventGroupedBySectionAndState(
+            @Param("eventId") Long eventId,
+            @Param("states") java.util.Collection<Reservation.State> states);
 
     @Modifying
     @Query("UPDATE Reservation r SET r.state = 'EXPIRED', r.expiredAt = :now " +
            "WHERE r.id = :id AND r.state = 'HELD'")
     int expireIfHeld(@Param("id") Long id, @Param("now") Instant now);
-
-    @Modifying
-    @Query("UPDATE Reservation r SET r.state = 'CANCELLED', r.cancelledAt = :now " +
-           "WHERE r.id = :id AND r.state = 'HELD'")
-    int cancelIfHeld(@Param("id") Long id, @Param("now") Instant now);
-
-    @Modifying
-    @Query("UPDATE Reservation r SET r.state = 'CONFIRMED', r.confirmedAt = :now " +
-           "WHERE r.id = :id AND r.state = 'HELD'")
-    int confirmIfHeld(@Param("id") Long id, @Param("now") Instant now);
 }

@@ -1,6 +1,10 @@
 import type { Reservation, InventoryPool, Order, ChargeResult, AdminMetrics, NotificationItem } from './types';
 
-const BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8081';
+// In dev, empty BASE routes through the vite proxy (vite.config.ts /api -> :8081)
+// avoiding any cross-origin browser call. In compose/production, set
+// VITE_API_BASE (e.g. http://localhost:8081); the backend allows exactly
+// the known frontend origins via CORS (see SecurityConfig).
+const BASE = import.meta.env.VITE_API_BASE ?? '';
 
 export interface Auth {
   email: string;

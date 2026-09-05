@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Conditional;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.KafkaException;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
@@ -18,10 +19,16 @@ import java.util.UUID;
  * that exercise the pure-Postgres paths don't spin up listener containers.
  *
  * Delivery semantics: at-least-once. Duplicates are made harmless by the
- * processed_event insert (UNIQUE (event_id, consumer_group)):
- *  - handler starts a transaction
- *  - tries to insert the marker; if it exists => duplicate => return
- *  - otherwise processes business effect and commits marker atomically
+ * processed_event insert (UNIQUE (event_id, consumer_group)) inside the
+ * SAME transaction as the business effect:
+ *  - handler's transaction begins
+ *  - insert the processed marker; duplicate key => already processed => commit nothing
+ *  - otherwise process business effect; marker + effect commit atomically
+ *
+ * NOTE on transactions: listeners dispatch to a SEPARATE bean
+ * (EventHandlers) — @Transactional only works through the Spring proxy, so
+ * the listener methods must not call the transactional handlers via
+ * this.method() (self-invocation bypasses the proxy).
  *
  * Failure semantics: a listener error is caught, recorded; after
  * MAX_ATTEMPTS the message is quarantined in dead_letter and ACKed
@@ -34,39 +41,31 @@ public class EventConsumers {
     private static final Logger log = LoggerFactory.getLogger(EventConsumers.class);
     private static final int MAX_ATTEMPTS = 5;
 
-    public static final String GROUP = "flashreserve";
-
-    private final ProcessedEventRepository processedRepository;
-    private final DeadLetterRepository deadLetterRepository;
-    private final com.flashreserve.notification.NotificationService notificationService;
-    private final com.flashreserve.analytics.AnalyticsService analyticsService;
+    private final DeadLetterService deadLetterService;
+    private final EventHandlers handlers;
     private final ObjectMapper objectMapper;
 
-    public EventConsumers(ProcessedEventRepository processedRepository,
-                          DeadLetterRepository deadLetterRepository,
-                          com.flashreserve.notification.NotificationService notificationService,
-                          com.flashreserve.analytics.AnalyticsService analyticsService,
+    public EventConsumers(DeadLetterService deadLetterService,
+                          EventHandlers handlers,
                           ObjectMapper objectMapper) {
-        this.processedRepository = processedRepository;
-        this.deadLetterRepository = deadLetterRepository;
-        this.notificationService = notificationService;
-        this.analyticsService = analyticsService;
+        this.deadLetterService = deadLetterService;
+        this.handlers = handlers;
         this.objectMapper = objectMapper;
     }
 
-    @KafkaListener(topics = "reservation-events", groupId = GROUP)
+    @KafkaListener(topics = "reservation-events", groupId = EventHandlers.GROUP)
     public void onReservationEvent(String value) {
-        handle("reservation-events", value, this::processReservation);
+        handle("reservation-events", value, handlers::processReservation);
     }
 
-    @KafkaListener(topics = "order-events", groupId = GROUP)
+    @KafkaListener(topics = "order-events", groupId = EventHandlers.GROUP)
     public void onOrderEvent(String value) {
-        handle("order-events", value, this::processOrder);
+        handle("order-events", value, handlers::processOrder);
     }
 
-    @KafkaListener(topics = "payment-events", groupId = GROUP)
+    @KafkaListener(topics = "payment-events", groupId = EventHandlers.GROUP)
     public void onPaymentEvent(String value) {
-        handle("payment-events", value, this::processPayment);
+        handle("payment-events", value, handlers::processPayment);
     }
 
     @FunctionalInterface
@@ -75,7 +74,6 @@ public class EventConsumers {
     }
 
     /**
-     * Common wrapper: parse, dedup, execute, or quarantine on repeated error.
      * Track attempt count in-memory per (topic+eventId) — bounded poison
      * handling without a retry-topic dependency for the portfolio scale.
      */
@@ -87,18 +85,15 @@ public class EventConsumers {
         try {
             envelope = objectMapper.readTree(value);
         } catch (Exception e) {
-            quarantine(topic, null, value, "malformed-json: " + e.getMessage(), 0);
+            deadLetterService.quarantine(topic, null, value,
+                    "malformed-json: " + e.getMessage(), 0);
             return;
         }
 
-        UUID eventId;
-        try {
-            eventId = UUID.fromString(envelope.path("eventId").asText(null));
-        } catch (Exception e) {
-            eventId = null;
-        }
+        String eventIdText = envelope.path("eventId").asText(null);
+        UUID eventId = parseUuid(eventIdText);
         if (eventId == null) {
-            quarantine(topic, null, value, "missing eventId", 0);
+            deadLetterService.quarantine(topic, null, value, "missing or invalid eventId", 0);
             return;
         }
 
@@ -110,7 +105,7 @@ public class EventConsumers {
             int attempts = attemptCounts.merge(dedupKey, 1, Integer::sum);
             if (attempts >= MAX_ATTEMPTS) {
                 String type = envelope.path("eventType").asText("unknown");
-                quarantine(topic, eventId, value, e.getMessage(), attempts);
+                deadLetterService.quarantine(topic, eventId, value, e.getMessage(), attempts);
                 attemptCounts.remove(dedupKey);
                 return;
             }
@@ -120,69 +115,12 @@ public class EventConsumers {
         }
     }
 
-    @org.springframework.transaction.annotation.Transactional
-    public void processReservation(JsonNode envelope) {
-        if (alreadyProcessed(envelope)) return;
-        String type = envelope.path("eventType").asText();
-        JsonNode p = envelope.path("payload");
-
-        // Notification projection (eventually consistent)
-        if ("ReservationConfirmed".equals(type) || "ReservationExpired".equals(type)
-                || "ReservationCancelled".equals(type)) {
-            Long userId = p.path("userId").asLong();
-            String body = switch (type) {
-                case "ReservationConfirmed" -> "Your reservation is confirmed!";
-                case "ReservationExpired" -> "Your reservation hold expired and inventory was released.";
-                default -> "Your reservation was cancelled.";
-            };
-            notificationService.notify(userId, type, body);
-        }
-        analyticsService.recordReservationEvent(type, envelope.toString());
-        markProcessed(envelope);
-    }
-
-    @org.springframework.transaction.annotation.Transactional
-    public void processOrder(JsonNode envelope) {
-        if (alreadyProcessed(envelope)) return;
-        analyticsService.recordOrderEvent(envelope.path("eventType").asText(),
-                envelope.toString());
-        markProcessed(envelope);
-    }
-
-    @org.springframework.transaction.annotation.Transactional
-    public void processPayment(JsonNode envelope) {
-        if (alreadyProcessed(envelope)) return;
-        analyticsService.recordPaymentEvent(envelope.path("eventType").asText(),
-                envelope.toString());
-        markProcessed(envelope);
-    }
-
-    private boolean alreadyProcessed(JsonNode envelope) {
-        UUID eventId = UUID.fromString(envelope.path("eventId").asText());
-        return processedRepository
-                .findByEventIdAndConsumerGroup(eventId, GROUP)
-                .isPresent();
-    }
-
-    private void markProcessed(JsonNode envelope) {
-        UUID eventId = UUID.fromString(envelope.path("eventId").asText());
+    private static UUID parseUuid(String text) {
+        if (text == null || text.isBlank()) return null;
         try {
-            processedRepository.saveAndFlush(new ProcessedEvent(eventId, GROUP));
-        } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            // Concurrent duplicate delivery on another thread — already marked.
-            log.debug("duplicate event suppressed eventId={}", eventId);
+            return UUID.fromString(text);
+        } catch (IllegalArgumentException e) {
+            return null;
         }
-    }
-
-    private void quarantine(String topic, UUID eventId, String payload,
-                            String error, int attempts) {
-        String type = "unknown";
-        try {
-            type = objectMapper.readTree(payload).path("eventType").asText("unknown");
-        } catch (Exception ignored) {
-        }
-        deadLetterRepository.save(new DeadLetter(eventId, type, topic,
-                error == null ? "unknown" : error, payload, attempts));
-        log.error("message quarantined topic={} eventId={} error={}", topic, eventId, error);
     }
 }

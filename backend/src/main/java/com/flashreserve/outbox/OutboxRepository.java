@@ -8,7 +8,6 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 public interface OutboxRepository extends JpaRepository<OutboxEvent, Long> {
 
@@ -21,14 +20,8 @@ public interface OutboxRepository extends JpaRepository<OutboxEvent, Long> {
 
     long countByState(OutboxEvent.State state);
 
+    /** Retention: drop published rows older than the cutoff. */
     @Modifying
     @Query("DELETE FROM OutboxEvent o WHERE o.state = 'PUBLISHED' AND o.publishedAt < :cutoff")
     int purgePublishedBefore(@Param("cutoff") Instant cutoff);
-
-    @Modifying
-    @Query("DELETE FROM IdempotencyKey k WHERE k.expiresAt < :cutoff")
-    int purgeExpiredIdempotencyKeys(@Param("cutoff") Instant cutoff);
-
-    interface IdempotencyKey {
-    }
 }

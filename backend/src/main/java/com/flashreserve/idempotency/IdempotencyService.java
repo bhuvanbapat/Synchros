@@ -80,16 +80,20 @@ public class IdempotencyService {
     /**
      * Claims the idempotency key. MUST be called outside (before) the business
      * transaction: the claim itself is REQUIRES_NEW.
+     *
+     * Concurrent-duplicate semantics: the claim is an INSERT ... ON CONFLICT
+     * DO NOTHING — losers observe rowcount 0 and get InFlight (409, retry
+     * later). No exception-based signaling: a constraint violation thrown
+     * during Hibernate flush marks the transaction rollback-only BEFORE the
+     * catch block runs, which turns the "graceful" path into
+     * UnexpectedRollbackException at commit (500s under contention).
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Precheck begin(Long userId, String operation, String key, String requestHash) {
         var existing = repository.findByUserIdAndOperationAndIdemKey(userId, operation, key);
         if (existing.isPresent()) {
             IdempotencyKey row = existing.get();
-            if (row.getExpiresAt().isBefore(Instant.now())) {
-                repository.delete(row);
-                repository.flush();
-            } else {
+            if (row.getExpiresAt().isAfter(Instant.now())) {
                 if (!row.getRequestHash().equals(requestHash)) {
                     throw new DomainException(
                             DomainException.ErrorCode.IDEMPOTENCY_CONFLICT,
@@ -100,16 +104,24 @@ public class IdempotencyService {
                 }
                 return new InFlight();
             }
+            // Expired: clear the old claim so this request can re-claim.
+            repository.delete(row);
+            repository.flush();
         }
-        IdempotencyKey claimed = new IdempotencyKey(key, userId, operation,
-                requestHash, Instant.now().plus(TTL));
-        try {
-            repository.saveAndFlush(claimed);
-        } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            // Concurrent duplicate insert collided on the UNIQUE constraint.
+
+        int claimed = repository.tryClaim(key, userId, operation, requestHash,
+                Instant.now().plus(TTL));
+        if (claimed == 0) {
+            // A concurrent request claimed it between our read and insert.
             return new InFlight();
         }
-        return new Fresh(claimed);
+        // Re-read the persisted row so the caller (complete/release) operates
+        // on the managed entity of THIS transaction.
+        IdempotencyKey row = repository
+                .findByUserIdAndOperationAndIdemKey(userId, operation, key)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Idempotency claim vanished immediately after insert"));
+        return new Fresh(row);
     }
 
     /**

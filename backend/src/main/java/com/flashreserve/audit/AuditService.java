@@ -9,10 +9,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Map;
 
 /**
- * Append-only audit trail. Uses REQUIRES_NEW so a failed business mutation
- * can still be recorded when called explicitly with FAILURE, while SUCCESS
- * entries written inside the caller's transaction commit with it (default
- * path — audit of committed mutations is what auditors want).
+ * Append-only audit trail. Entries are written inside the caller's
+ * transaction (REQUIRED) so the audit of a mutation commits atomically
+ * with the mutation itself — auditors see only real committed changes.
  */
 @Service
 public class AuditService {
@@ -29,12 +28,6 @@ public class AuditService {
     public void record(String actor, String operation, String entityType,
                        String entityId, Map<String, Object> details) {
         record(actor, operation, entityType, entityId, "SUCCESS", details);
-    }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void recordNew(String actor, String operation, String entityType,
-                          String entityId, String result, Map<String, Object> details) {
-        record(actor, operation, entityType, entityId, result, details);
     }
 
     void record(String actor, String operation, String entityType,

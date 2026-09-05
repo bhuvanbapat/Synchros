@@ -19,6 +19,12 @@ public class FlashUserDetailsService implements UserDetailsService {
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         var user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("No user: " + email));
+        if ("SUSPENDED".equals(user.getAccountState())) {
+            // Backed by the account_state CHECK constraint; auth must not
+            // merely verify credentials but account standing.
+            throw new org.springframework.security.authentication.DisabledException(
+                    "Account suspended: " + email);
+        }
         return new FlashUserDetails(user.getId(), user.getEmail(),
                 user.getPasswordHash(), user.getRole());
     }

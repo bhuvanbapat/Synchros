@@ -11,8 +11,7 @@ import java.time.Duration;
 import java.util.Optional;
 
 /**
- * Cache-aside wrapper for catalog reads. Rules (docs/ARCHITECTURE.md):
- *  - Only NEVER-CHANGES-WITHOUT-INVALIDATION data is cached.
+ * Cache-aside wrapper for availability reads. Rules (docs/ARCHITECTURE.md):
  *  - Pool availability is cached with a SHORT TTL purely as a display hint;
  *    the reservation path never trusts it — the conditional UPDATE is the
  *    gate. A stale hint can cause a pointless 409, never an oversell.
@@ -24,7 +23,6 @@ public class CatalogCache {
 
     private static final Logger log = LoggerFactory.getLogger(CatalogCache.class);
 
-    private static final Duration CATALOG_TTL = Duration.ofMinutes(5);
     private static final Duration AVAILABILITY_TTL = Duration.ofSeconds(3);
 
     private final ObjectProvider<StringRedisTemplate> redisProvider;
@@ -40,30 +38,12 @@ public class CatalogCache {
         return redisProvider.getIfAvailable();
     }
 
-    public Optional<String> getCatalog() {
-        return read("cache:catalog", "catalog");
-    }
-
-    public void putCatalog(String json) {
-        write("cache:catalog", json, CATALOG_TTL);
-    }
-
     public Optional<String> getAvailability(Long poolId) {
         return read("cache:avail:" + poolId, "availability");
     }
 
     public void putAvailability(Long poolId, String value) {
         write("cache:avail:" + poolId, value, AVAILABILITY_TTL);
-    }
-
-    public void invalidateAvailability(Long poolId) {
-        var redis = redis();
-        if (redis == null) return;
-        try {
-            redis.delete("cache:avail:" + poolId);
-        } catch (Exception e) {
-            log.warn("cache invalidate failed (ignored): {}", e.getMessage());
-        }
     }
 
     private Optional<String> read(String key, String cacheName) {

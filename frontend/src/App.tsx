@@ -220,7 +220,7 @@ function Shop({ auth }: { auth: Auth }) {
             </thead>
             <tbody>
               {pools.map((p) => (
-                <tr key={p.publicId} data-testid={`pool-${p.section}`}>
+                <tr key={p.id} data-testid={`pool-${p.section}`}>
                   <td>{p.section}</td>
                   <td>{p.total}</td>
                   <td data-testid={`avail-${p.section}`}>{p.available}</td>

@@ -14,7 +14,6 @@ public class FlashReserveTopics {
     public static final String RESERVATION_EVENTS = "reservation-events";
     public static final String ORDER_EVENTS = "order-events";
     public static final String PAYMENT_EVENTS = "payment-events";
-    public static final String NOTIFICATION_EVENTS = "notification-events";
 
     private static final Map<String, String> ROUTING = Map.of(
             "ReservationCreated", RESERVATION_EVENTS,

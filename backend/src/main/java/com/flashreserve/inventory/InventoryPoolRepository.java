@@ -14,6 +14,8 @@ public interface InventoryPoolRepository extends JpaRepository<InventoryPool, Lo
 
     Optional<InventoryPool> findByEventIdAndSection(Long eventId, String section);
 
+    Optional<InventoryPool> findByPublicId(java.util.UUID publicId);
+
     /**
      * Atomic conditional decrement — the oversell-prevention primitive.
      * The WHERE clause makes decrement-and-check a single atomic statement:

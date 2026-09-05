@@ -50,10 +50,6 @@ public class InventoryPool {
     public int getAvailable() { return available; }
     public long getVersion() { return version; }
 
-    public void addAvailable(int qty) {
-        this.available += qty;
-    }
-
     @PrePersist
     void onCreate() {
         if (publicId == null) publicId = UUID.randomUUID();

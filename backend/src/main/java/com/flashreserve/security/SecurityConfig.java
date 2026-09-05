@@ -14,7 +14,6 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
  * HTTP Basic auth for the demo (documented as a portfolio-scale choice in
@@ -33,10 +32,32 @@ public class SecurityConfig {
         this.userDetailsService = userDetailsService;
     }
 
+    /**
+     * CORS for the known frontend origins ONLY (explicit allow-list, never
+     * a wildcard: credentials are Basic auth). Origins are configurable so
+     * deployments can point at their own frontend host.
+     */
+    @Bean
+    org.springframework.web.cors.UrlBasedCorsConfigurationSource corsConfigurationSource() {
+        var config = new org.springframework.web.cors.CorsConfiguration();
+        config.setAllowedOrigins(java.util.List.of(
+                java.util.Optional.ofNullable(
+                        System.getenv("FRONTEND_ORIGIN")).orElse("http://localhost:5173"),
+                "http://localhost:5173"));
+        config.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(java.util.List.of("Authorization", "Content-Type",
+                "Idempotency-Key", "X-Request-Id"));
+        config.setMaxAge(3600L);
+        var source = new org.springframework.web.cors.UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
+    }
+
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable()) // stateless API, no cookies
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
@@ -53,21 +74,8 @@ public class SecurityConfig {
                     res.setContentType("application/json");
                     res.getWriter().write(
                             "{\"code\":\"UNAUTHORIZED\",\"message\":\"Authentication required\"}");
-                }))
-                .addFilterBefore(new RequestIdAuthBridge(),
-                        UsernamePasswordAuthenticationFilter.class);
+                }));
         return http.build();
-    }
-
-    /** Copies request-scoped context (none currently) before auth runs. */
-    static class RequestIdAuthBridge extends org.springframework.web.filter.OncePerRequestFilter {
-        @Override
-        protected void doFilterInternal(jakarta.servlet.http.HttpServletRequest request,
-                                        jakarta.servlet.http.HttpServletResponse response,
-                                        jakarta.servlet.FilterChain chain)
-                throws java.io.IOException, jakarta.servlet.ServletException {
-            chain.doFilter(request, response);
-        }
     }
 
     @Bean

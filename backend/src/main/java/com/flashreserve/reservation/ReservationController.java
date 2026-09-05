@@ -99,6 +99,7 @@ public class ReservationController {
             metrics.reservationSuccess();
             return ResponseEntity.status(HttpStatus.CREATED).body(body);
         } catch (DomainException e) {
+            metrics.reservationError();
             if (e.getCode() == DomainException.ErrorCode.INVENTORY_UNAVAILABLE) {
                 metrics.inventoryUnavailable();
             }
@@ -107,6 +108,7 @@ public class ReservationController {
             }
             throw e;
         } catch (Exception e) {
+            metrics.reservationError();
             if (fresh != null) {
                 idempotencyService.release(fresh.claimed());
             }
@@ -130,10 +132,10 @@ public class ReservationController {
 
     @PostMapping("/{id}/cancel")
     public ReservationDtos.ReservationResponse cancel(@CurrentUser FlashUserDetails user,
-                                                      @PathVariable UUID id) {
-        return ReservationDtos.ReservationResponse.from(
-                reservationService.cancel(id, user.getUserId()), resolveEventPublicId(
-                        reservationService.getByPublicIdForUser(id, user.getUserId())));
+                                                       @PathVariable UUID id) {
+        Reservation cancelled = reservationService.cancel(id, user.getUserId());
+        return ReservationDtos.ReservationResponse.from(cancelled,
+                resolveEventPublicId(cancelled));
     }
 
     private UUID resolveEventPublicId(Reservation r) {

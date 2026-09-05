@@ -17,6 +17,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     List<Order> findByUserIdOrderByCreatedAtDesc(Long userId);
 
+    /** Reconciliation: only orders that could be orphaned, bounded by state. */
+    List<Order> findByState(Order.State state);
+
     @Modifying
     @Query("UPDATE Order o SET o.state = 'EXPIRED' " +
            "WHERE o.id = :id AND o.state = 'PENDING_PAYMENT'")

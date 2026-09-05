@@ -34,7 +34,14 @@ public class UserService {
         user.setEmail(request.email());
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setRole("USER");
-        return userRepository.save(user);
+        try {
+            return userRepository.saveAndFlush(user);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            // Concurrent register with the same email lost the UNIQUE race —
+            // surface the same clean 400 the pre-check would have produced.
+            throw new DomainException(DomainException.ErrorCode.INVALID_REQUEST,
+                    "Email already registered");
+        }
     }
 
     /** Validates credentials; returns the persisted user. */

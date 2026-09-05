@@ -24,4 +24,10 @@ public interface ReservationLockRepository extends JpaRepository<Reservation, Lo
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT r FROM Reservation r WHERE r.publicId = :publicId")
     Optional<Reservation> lockByPublicId(@Param("publicId") UUID publicId);
+
+    /** Lock + ownership check in one query (order-create path). */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM Reservation r WHERE r.publicId = :publicId AND r.userId = :userId")
+    Optional<Reservation> lockByPublicIdAndOwner(@Param("publicId") UUID publicId,
+                                                 @Param("userId") Long userId);
 }
