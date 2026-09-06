@@ -10,8 +10,8 @@ import org.springframework.web.client.RestClient;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * End-to-end idempotency over HTTP: same key + same body => one logical
- * reservation; different body + same key => 409 conflict.
+ * End-to-end idempotency over HTTP (JWT auth): same key + same body => one
+ * logical reservation; different body + same key => 409 conflict.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class ApiIdempotencyIT extends PostgresIntegrationBase {
@@ -26,10 +26,20 @@ class ApiIdempotencyIT extends PostgresIntegrationBase {
                 .build();
     }
 
+    private String token(String user) {
+        var resp = rest().post().uri("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body("{\"email\":\"" + user + "\",\"password\":\"password\"}")
+                .retrieve()
+                .body(new org.springframework.core.ParameterizedTypeReference<java.util.Map<String, Object>>() {});
+        return (String) resp.get("accessToken");
+    }
+
     @Test
     void repeatedSameKeySameBodyCreatesOneReservation() {
+        String alice = token("alice@example.com");
         var events = rest().get().uri("/api/events")
-                .headers(h -> h.setBasicAuth("alice@example.com", "password"))
+                .headers(h -> h.setBearerAuth(alice))
                 .retrieve().toEntity(String.class);
         String eventId = extract(events.getBody(), "id");
 
@@ -37,7 +47,7 @@ class ApiIdempotencyIT extends PostgresIntegrationBase {
 
         var first = rest().post().uri("/api/reservations")
                 .headers(h -> {
-                    h.setBasicAuth("alice@example.com", "password");
+                    h.setBearerAuth(alice);
                     h.setContentType(MediaType.APPLICATION_JSON);
                     h.set("Idempotency-Key", "e2e-idem-1");
                 })
@@ -48,7 +58,7 @@ class ApiIdempotencyIT extends PostgresIntegrationBase {
 
         var second = rest().post().uri("/api/reservations")
                 .headers(h -> {
-                    h.setBasicAuth("alice@example.com", "password");
+                    h.setBearerAuth(alice);
                     h.setContentType(MediaType.APPLICATION_JSON);
                     h.set("Idempotency-Key", "e2e-idem-1");
                 })
@@ -62,7 +72,7 @@ class ApiIdempotencyIT extends PostgresIntegrationBase {
 
         var third = rest().post().uri("/api/reservations")
                 .headers(h -> {
-                    h.setBasicAuth("alice@example.com", "password");
+                    h.setBearerAuth(alice);
                     h.setContentType(MediaType.APPLICATION_JSON);
                     h.set("Idempotency-Key", "e2e-idem-1");
                 })
@@ -73,14 +83,15 @@ class ApiIdempotencyIT extends PostgresIntegrationBase {
 
     @Test
     void sameKeyDifferentBodyConflicts() {
+        String bob = token("bob@example.com");
         var events = rest().get().uri("/api/events")
-                .headers(h -> h.setBasicAuth("bob@example.com", "password"))
+                .headers(h -> h.setBearerAuth(bob))
                 .retrieve().toEntity(String.class);
         String eventId = extract(events.getBody(), "id");
 
         int first = rest().post().uri("/api/reservations")
                 .headers(h -> {
-                    h.setBasicAuth("bob@example.com", "password");
+                    h.setBearerAuth(bob);
                     h.setContentType(MediaType.APPLICATION_JSON);
                     h.set("Idempotency-Key", "e2e-idem-2");
                 })
@@ -90,7 +101,7 @@ class ApiIdempotencyIT extends PostgresIntegrationBase {
 
         int second = rest().post().uri("/api/reservations")
                 .headers(h -> {
-                    h.setBasicAuth("bob@example.com", "password");
+                    h.setBearerAuth(bob);
                     h.setContentType(MediaType.APPLICATION_JSON);
                     h.set("Idempotency-Key", "e2e-idem-2");
                 })

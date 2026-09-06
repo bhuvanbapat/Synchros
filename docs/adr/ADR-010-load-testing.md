@@ -9,8 +9,8 @@ is where the bugs that sequential testing misses live.
 
 ## Decision
 
-k6 with three scenario scripts sharing helpers (Basic-auth builder,
-business-outcome counters distinct from k6 protocol metrics):
+k6 with three scenario scripts sharing helpers (JWT login + per-VU token
+cache; business-outcome counters distinct from k6 protocol metrics):
 
 1. **flash-sale.js** — extreme contention: N fresh users (parallel batch
    registration in setup) race one pool. Success criterion is the

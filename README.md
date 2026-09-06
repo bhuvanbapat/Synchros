@@ -20,11 +20,12 @@ The centerpiece is *correctness under concurrency*, not features:
 | Lost events | Transactional outbox + Kafka publisher with bounded retries + dead-letter; **no broker I/O inside any DB transaction** |
 | Duplicate event delivery | Consumer-side idempotency via `(event_id, consumer_group)` UNIQUE marker |
 | Abandoned holds | TTL expiration job; confirm-vs-expire races collapse to exactly one winner (row locks + conditional flips) |
-| Payment callbacks | Deterministic mock gateway; duplicate and late callbacks absorbed with zero business effect |
+| Payment callbacks | Deterministic mock gateway; **every delivery HMAC-SHA256-signed — unsigned/tampered → 401**; duplicate and late callbacks absorbed with zero business effect |
+| Authentication | Stateless JWT (HS256, JDK-only, constant-time verify); fresh principal reloaded per request so suspensions bind immediately |
 | Hot reads / abuse | Redis availability-hint cache (3s TTL, fail-open) + Lua token-bucket rate limiting — Redis is never authoritative |
 | Consistency | Inventory ownership strictly transactional; notifications/analytics eventually consistent |
 | Auditability | Append-only audit table + request correlation IDs end-to-end |
-| Observability | Actuator, Micrometer/Prometheus business counters, structured logs, reconciliation |
+| Observability | Actuator, Micrometer/Prometheus business counters, structured logs, reconciliation, opt-in OpenTelemetry tracing (OTLP) |
 
 ## Verified results (measured on the dev machine — see docs/PERFORMANCE.md)
 
@@ -34,8 +35,10 @@ The centerpiece is *correctness under concurrency*, not features:
   reservation.**
 - Kafka stopped → reservations still commit; outbox buffers; drains on
   recovery (0 lost events across all runs).
+- **Kafka leader killed in the 3-broker HA cluster → failover in seconds,
+  10/10 messages survived, zero loss** (`docker-compose.ha.yml` chaos drill).
 - Reconciliation after every benchmark: `consistent=true`, 0 findings.
-- 45 backend tests + 5 frontend tests, all green.
+- 55 backend tests + 5 frontend tests, all green.
 
 ## Quick start (Docker)
 
@@ -66,17 +69,22 @@ Demo accounts (password `password`): `alice@example.com`,
 
 ## The core demo
 
-1. Open an event with limited inventory (`GET /api/events`).
-2. Reserve a unit → `POST /api/reservations` with an `Idempotency-Key`
+1. Log in → `POST /api/auth/login` returns a **JWT**; all calls send
+   `Authorization: Bearer <token>`.
+2. Open an event with limited inventory (`GET /api/events`).
+3. Reserve a unit → `POST /api/reservations` with an `Idempotency-Key`
    header → status `HELD` with a countdown.
-3. Re-send the same request → the **same** reservation comes back
+4. Re-send the same request → the **same** reservation comes back
    (`X-Idempotent-Replay: true`), not a second one.
-4. Pay within the hold TTL via the mock gateway → order `CONFIRMED`,
-   reservation `CONFIRMED`, inventory stays sold.
-5. Let a hold expire → inventory automatically returns to the pool.
-6. Fire the contention benchmark → successes never exceed inventory.
-7. Stop Kafka → business transactions still commit; start Kafka → the
+5. Pay within the hold TTL via the mock gateway → order `CONFIRMED`,
+   reservation `CONFIRMED`, inventory stays sold. (The relay HMAC-signs
+   its delivery; send your own unsigned callback → 401.)
+6. Let a hold expire → inventory automatically returns to the pool.
+7. Fire the contention benchmark → successes never exceed inventory.
+8. Stop Kafka → business transactions still commit; start Kafka → the
    outbox drains.
+9. `docker compose -f docker-compose.ha.yml up -d` → 3-broker cluster;
+   kill a broker leader → topics fail over, no message loss.
 
 Full walkthrough with commands: [docs/DEMO.md](docs/DEMO.md).
 
@@ -86,11 +94,13 @@ Full walkthrough with commands: [docs/DEMO.md](docs/DEMO.md).
 (https://grafana.com/docs/k6/latest/set-up/install-k6/ — the binary is
 deliberately not committed):
 
-```bash
-# get the seeded event id
-$auth = @{ Authorization = 'Basic ' + [Convert]::ToBase64String(
-    [Text.Encoding]::ASCII.GetBytes('alice@example.com:password')) }
-$ev = (Invoke-RestMethod http://localhost:8081/api/events -Headers $auth).id
+```powershell
+# log in once for a token (used by the scripts per VU)
+$tok = (Invoke-RestMethod http://localhost:8081/api/auth/login `
+    -Method Post -ContentType 'application/json' `
+    -Body '{"email":"alice@example.com","password":"password"}').accessToken
+$auth = @{ Authorization = "Bearer $tok" }
+$ev = (Invoke-RestMethod http://localhost:8081/api/events -Headers $auth)[0].id
 
 k6 run -e EVENT_ID=<uuid> -e SECTION=BALCONY -e CLIENTS=500 -e UNITS=100 load-tests/flash-sale.js
 k6 run -e EVENT_ID=<uuid> -e SECTION=BALCONY -e RUN_TAG=<unique> load-tests/duplicate-request.js
@@ -104,7 +114,7 @@ relative imports — copy `load-tests/*.js` to a plain path (e.g.
 ## Testing
 
 ```bash
-cd backend  && mvnw.cmd test    # 45 tests; Testcontainers needs Docker
+cd backend  && mvnw.cmd test    # 55 tests; Testcontainers needs Docker
 cd frontend && npm test -- --run --pool=threads
 ```
 
@@ -124,7 +134,7 @@ cd frontend && npm test -- --run --pool=threads
 - [docs/RESUME_NOTES.md](docs/RESUME_NOTES.md) — resume/interview material
 - [docs/INTERVIEW_GUIDE.md](docs/INTERVIEW_GUIDE.md) — deep-dive Q&A
 - [docs/LIMITATIONS.md](docs/LIMITATIONS.md) — **brutal, honest limitations** (read this before production claims)
-- [docs/adr/](docs/adr/) — ADR-001 … ADR-010
+- [docs/adr/](docs/adr/) — ADR-001 … ADR-012
 - [BUILD_STATUS.md](BUILD_STATUS.md) — completion checklist
 - [CHANGELOG.md](CHANGELOG.md) · [CONTRIBUTING.md](CONTRIBUTING.md)
 

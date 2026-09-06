@@ -21,4 +21,11 @@ public class AuthDtos {
             @Email @NotBlank String email,
             @NotBlank String password) {
     }
+
+    public record LoginResponse(
+            String accessToken,
+            String tokenType,
+            long expiresIn,
+            UserResponse user) {
+    }
 }

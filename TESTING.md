@@ -27,7 +27,7 @@ Demo accounts (password `password`): `alice@example.com`,
 
 ## 1. Automated tests (the fastest full verification)
 
-### 1a. Backend — 45 tests incl. real-Postgres concurrency ITs
+### 1a. Backend — 55 tests incl. real-Postgres concurrency ITs
 
 ```powershell
 cd backend
@@ -50,7 +50,8 @@ What you are actually verifying, by test class:
 | PaymentRetryIT | TIMEOUT then SUCCESS still confirms (retry path not bricked); concurrent duplicate registrations → 1 user + 7 clean 400s |
 | ExpirationIT | expiry releases units; confirm-vs-expire → one winner; confirm after expiry fails cleanly |
 | ApiIdempotencyIT / IdempotencyIT | replay/conflict/in-flight semantics (service + real HTTP) |
-| ApiSecurityIT | 401/403 gates, IDOR blocked, injection fails safely, validation 400s |
+| ApiSecurityIT | JWT 401/403 gates, tampered + expired tokens, IDOR blocked, injection fails safely, validation 400s |
+| AuthHardeningIT | JWT round-trip/tamper/expiry/wrong-secret; HMAC round-trip/tamper; unsigned + tampered webhooks rejected 401 over real HTTP |
 | OutboxIT | outbox row commits with the mutation, rolls back with it |
 | ReconciliationIT | detects intentionally corrupted counters + stuck holds |
 | EventHandlersTest / DeadLetterServiceTest | consumer dedup; poison quarantine |
@@ -80,12 +81,14 @@ cd frontend && npm ci && npx oxlint src && npm test -- --run --pool=threads && n
 
 ## 2. Manual E2E — the core user journey (5 minutes)
 
-Header helper used below:
+Header helper used below (JWT — one login, Bearer everywhere):
 
 ```powershell
-$auth  = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes('alice@example.com:password'))
-$H     = @{ Authorization = "Basic $auth" }
-$ev    = (Invoke-RestMethod http://localhost:8081/api/events -Headers $H).id
+$tok  = (Invoke-RestMethod http://localhost:8081/api/auth/login -Method Post `
+        -ContentType 'application/json' `
+        -Body '{"email":"alice@example.com","password":"password"}').accessToken
+$H    = @{ Authorization = "Bearer $tok" }
+$ev   = (Invoke-RestMethod http://localhost:8081/api/events -Headers $H)[0].id
 ```
 
 ### 2.1 Reserve → idempotent replay → pay → confirm
@@ -129,7 +132,10 @@ Invoke-WebRequest http://localhost:8081/api/reservations -Method Post `
 
 ```powershell
 # bob cannot read alice's reservation
-$bobH = @{ Authorization = 'Basic ' + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes('bob@example.com:password')) }
+$bobTok = (Invoke-RestMethod http://localhost:8081/api/auth/login -Method Post `
+        -ContentType 'application/json' `
+        -Body '{"email":"bob@example.com","password":"password"}').accessToken
+$bobH = @{ Authorization = "Bearer $bobTok" }
 Invoke-WebRequest "http://localhost:8081/api/reservations/$($r.id)" -Headers $bobH -SkipHttpErrorCheck |
   Select-Object StatusCode, Content     # 403, {"code":"FORBIDDEN",...}
 ```
@@ -162,7 +168,10 @@ Confirm-after-expiry must 409 (never 500):
 ## 3. Admin / operations checks
 
 ```powershell
-$adminH = @{ Authorization = 'Basic ' + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes('admin@flashreserve.dev:password')) }
+$adminTok = (Invoke-RestMethod http://localhost:8081/api/auth/login -Method Post `
+        -ContentType 'application/json' `
+        -Body '{"email":"admin@flashreserve.dev","password":"password"}').accessToken
+$adminH = @{ Authorization = "Bearer $adminTok" }
 
 Invoke-RestMethod http://localhost:8081/api/admin/metrics    -Headers $adminH   # pools w/ held+sold, reservation counts, outbox by state
 Invoke-RestMethod http://localhost:8081/api/admin/audit     -Headers $adminH   # append-only trail w/ requestId
@@ -304,7 +313,7 @@ Automated: `npm test -- --run --pool=threads` (5 tests cover items 2–5).
 
 ```powershell
 # 1. automated backend + frontend
-cd backend  && .\mvnw.cmd --batch-mode clean test          # 45/45
+cd backend  && .\mvnw.cmd --batch-mode clean test          # 55/55
 cd frontend && npm ci && npx oxlint src &&
                npm test -- --run --pool=threads && npm run build
 

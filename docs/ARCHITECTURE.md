@@ -16,7 +16,7 @@ boundaries, one PostgreSQL, one Redis, one Kafka broker. Nothing is
                  │                Browser / k6                │
                  │   React+TS SPA  ·  admin ops dashboard     │
                  └──────────────┬─────────────────────────────┘
-                                │ HTTP Basic + JSON
+                                │ JWT Bearer + JSON
                                 ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │                     FlashReserve (Spring Boot)                    │

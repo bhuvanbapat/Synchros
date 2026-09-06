@@ -5,6 +5,58 @@ project does not use semantic versioning (portfolio project, see git log).
 
 ## [Unreleased]
 
+### Added — production-hardening pass (closing every documented gap)
+
+- **JWT bearer authentication** (replaces HTTP Basic):
+  - `JwtService`: JDK-only HS256 issuer/verifier (standard JWS compact
+    serialization, no external library); subject = email; custom claims
+    carry numeric DB user id + role so ownership checks are untouched.
+    Constant-time signature comparison; 60s expiry leeway; hard startup
+    failure when the secret is < 32 chars.
+  - `JwtAuthFilter`: verifies the token, then re-loads a FRESH principal
+    from the DB each request — account suspension and role changes take
+    effect immediately, tokens alone can never vouch for standing.
+  - `POST /api/auth/login` now returns `{accessToken, tokenType,
+    expiresIn, user}`; all API calls present `Authorization: Bearer`.
+  - Frontend `api.ts` is token-based (login exchanges credentials once);
+    k6 helpers log in per VU and cache the token.
+- **Webhook HMAC-SHA256** (was documented-only, now enforced):
+  - `WebhookSigner`: HMAC-SHA256 over exact raw payload bytes, base64 in
+    `X-Signature` (Stripe-style); constant-time verification.
+  - `RawBodyCaptureFilter`: byte-preserving request wrapper scoped to
+    `/api/payment-webhooks` so verification sees exactly the signed bytes.
+  - `PaymentRelay` signs every simulated PSP delivery; the HTTP endpoint
+    rejects unsigned/tampered calls with 401 `WEBHOOK_SIGNATURE_INVALID`
+    before any parsing or state change.
+- **OpenTelemetry tracing** (opt-in): micrometer-tracing bridge + OTLP
+  exporter behind `OTEL_TRACING_ENABLED` + `OTEL_EXPORTER_OTLP_ENDPOINT`;
+  dormant by default, correlation IDs remain the always-on baseline.
+  `docker-compose.ha.yml --profile tracing` ships an OTel Collector.
+- **HA Kafka topology** (`docker-compose.ha.yml`): 3-broker KRaft cluster,
+  RF=3, min.insync.replicas=2, `tools/ha-create-topics.sh` provisions the
+  3 app topics, `topic-verifier` service reports replication state.
+- `AuthHardeningIT`: token tamper/expiry/wrong-secret, HMAC round-trip/
+  tamper, unsigned + tampered webhooks rejected over real HTTP (10 tests).
+- `tools/smoke.ps1`: one-command live verification of JWT login, HMAC
+  enforcement, full reserve→order→pay flow, notifications, admin metrics,
+  reconciliation.
+
+### Fixed — hardening-pass findings
+- **Strict-firewall rejections surfaced as 500**: malformed/unsafe
+  requests rejected by Spring's StrictHttpFirewall now map to structured
+  400 `INVALID_REQUEST` instead of `INTERNAL_ERROR` (found live during
+  the E2E smoke).
+
+### Verified — hardening pass (live on this machine)
+- Backend: **55/55 tests green** (45 + 10 new auth-hardening tests).
+- Frontend: 5/5 vitest green, production build green, type-check clean.
+- Live smoke (`tools/smoke.ps1`): JWT login → catalog → inventory →
+  reserve → order → signed-webhook pay → CONFIRMED; unsigned + tampered
+  webhook 401; tampered JWT 401; reconciliation consistent, 0 findings.
+- HA chaos drill: killed the events-topic leader → failover to another
+  broker, ISR 3→2, **10/10 messages survived, zero loss**; broker
+  rejoined cleanly.
+
 ### Fixed — audit-driven correctness pass (all verified by new regression tests)
 - **Concurrent duplicate idempotency-key requests returned HTTP 500**
   (`UnexpectedRollbackException`): a constraint violation during Hibernate
@@ -78,8 +130,8 @@ project does not use semantic versioning (portfolio project, see git log).
 - BUILD_STATUS.md tracking; LICENSE (MIT).
 
 ### Verified
-- Backend: **45/45 tests green** (unit + Testcontainers integration).
-- Frontend: 5/5 vitest green, production build green, oxlint clean.
+- Backend: **55/55 tests green** (unit + Testcontainers integration).
+- Frontend: 5/5 vitest green, production build green, type-check clean.
 - Live benchmarks (post-fix): 500 clients vs 100 units → exactly 100
   successes, 400 clean 409s, 0 5xx, reconciliation consistent; 20
   concurrent duplicate requests → exactly 1 reservation, 0 5xx.

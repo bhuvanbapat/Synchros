@@ -35,9 +35,12 @@ meaningful only relative to that box."
 
 - **One PostgreSQL.** It dies → the platform dies. No replica, no
   failover, no PITR configured — just claims about how you *would*.
-- **One Kafka broker, RF=1, `min.insync` irrelevant.** One broker means
-  a broker restart can drop in-flight messages (outbox recovers them —
-  that part is real — but availability of the event plane is a coin flip).
+- **Kafka: the HA topology now exists and is verified** (3-broker KRaft
+  cluster, RF=3, min ISR=2; chaos drill killed the events-topic leader
+  and 10/10 messages survived — `docker-compose.ha.yml`). But the *app*
+  still ships with the single-broker compose as the default, Postgres and
+  Redis remain single-instance, and the HA cluster has never carried the
+  full benchmark suite.
 - **One app instance.** No load balancer, no rolling deploys, no
   health-gated restarts. Compose restarts the whole thing.
 - **Redis** is the one component where failover doesn't matter by design
@@ -45,25 +48,42 @@ meaningful only relative to that box."
 
 ## 3. The auth would not survive contact with the internet
 
-🔴 **HTTP Basic, no TLS in the demo, no lockout, no throttling on login.**
-Anyone can brute-force `POST /api/auth/login` as fast as they like — the
-rate limiter only guards `POST /api/reservations`. Register has no
-CAPTCHA/email verification; anyone can create unlimited accounts (the
-load tests create 500 per run against the "production" DB). Passwords are
-bcrypt cost 10 — fine — but there's no rotation, no 2FA, no session
-revocation concept (Basic auth has no sessions to revoke; every request
-re-authenticates forever).
+🟡 **JWT now, not Basic** — tokens are HS256-signed, tamper/expiry/
+wrong-secret rejected, suspension enforced per-request via fresh
+principal reload. What still would not survive:
 
-## 4. The payment webhook is a bank vault with the door marked "please knock"
+- **No TLS in the demo** — bearer tokens must not cross untrusted hops
+  in clear (terminate TLS at the LB; the app doesn't do it itself).
+- **No lockout, no throttling on login** — the rate limiter still only
+  guards `POST /api/reservations`. Brute-forcing `/api/auth/login` is
+  unimpeded. An auth-attempt limiter is the next addition.
+- Register has no CAPTCHA/email verification; anyone can create
+  unlimited accounts (the load tests create 500 per run against the
+  "production" DB).
+- **No refresh-token rotation or revocation list** — tokens are 1h and
+  the per-request reload covers suspension, but a leaked token is valid
+  until expiry with no server-side kill switch.
+- HS256 (symmetric): right for one service; multi-service wants RS256 so
+  verifiers never hold the signing key.
+- Passwords are bcrypt cost 10 — fine — but no rotation, no 2FA.
 
-🔴 It's a **public, unauthenticated endpoint that moves order state.**
-The mitigations are real (strict validation, idempotency, state machine)
-and a forged callback can only apply SUCCESS/FAILURE/TIMEOUT to an order
-that exists... but a forged SUCCESS on someone else's pending order
-confirms it without payment. In production that's not a hardening item,
-that's the whole ballgame: **HMAC signature verification is documented as
-a TODO, not implemented** — because there's no real PSP to sign. Anyone
-who says "it's fine for a demo" is right; anyone who deploys it is wrong.
+## 4. The payment webhook ~~is a bank vault with the door marked "please knock"~~ now checks signatures
+
+🟢→🟡 The previous state (public unauthenticated state-mutating endpoint)
+is closed: **every delivery must now carry HMAC-SHA256 over the exact
+raw bytes; unsigned/tampered → 401 before parsing** (verified over real
+HTTP in AuthHardeningIT; the relay signs every simulated payment so the
+path runs constantly). Remaining honesty:
+
+- A *correctly signed* forged SUCCESS on someone else's pending order
+  still confirms it — HMAC proves origin, not authorization to apply.
+  With a single shared secret, anyone holding the PSP secret can do
+  this. Multi-PSP setups key secrets per provider and scopes are
+  narrower.
+- No timestamp/replay-window check in the signature scheme (a captured
+  valid delivery could be replayed raw — idempotency absorbs the state
+  effect, but the attempt row is still written).
+- The secret is env-injected but there is no rotation story.
 
 ## 5. Consumer poison handling has a hole that resets
 
@@ -114,14 +134,15 @@ horizontally" story the docs tell.
 
 ## 9. Things the tests don't cover (that they pretend they might)
 
-🟡 Be precise about what 45 green tests does *not* mean:
+🟡 Be precise about what 55 green tests does *not* mean:
 
 - **No Kafka integration test in CI.** `flashreserve.kafka.enabled=false`
   in the whole IT suite. The consumers are unit-tested with mocks; the
   publisher's `publishOne` is only ever exercised live (compose demo) —
   meaning **the publisher→broker→consumer loop has zero automated
   regression protection.** The Kafka Testcontainers dependency exists in
-  the pom and is never used.
+  the pom and is never used. (The HA chaos drill verified the *cluster*,
+  not the app's consumers against it.)
 - **No schema-migration failure test** (Flyway runs before each IT via
   the container, which is decent — but no test pins a migration rollback
   or a checksum-conflict path).
@@ -157,9 +178,9 @@ horizontally" story the docs tell.
 🟡 Micrometer counters exist and Prometheus can scrape them — but there
 are **no dashboards, no alert rules, no SLOs** in the repo. The p95
 miss in PERFORMANCE.md was discovered by reading k6 output, not by an
-alert. Tracing: explicitly not implemented (correlation IDs only — a
-defensible call, documented, but a gap next to any project with real
-OTel).
+alert. Tracing: OpenTelemetry is now wired (opt-in, OTLP export +
+collector profile in the HA compose) — a real deployment still needs to
+point it at Jaeger/Tempo and actually read the spans; nobody has yet.
 
 ## 12. Smaller paper cuts, all real
 
@@ -213,9 +234,11 @@ OTel).
 > This is a **correctness-first, single-node proof of concept with
 > production-grade patterns and demo-grade infrastructure.** The
 > invariants (no oversell, no duplicate effects, no lost events) are
-> genuinely proven by tests and live drills. The operational story —
-> HA, auth hardening, HMAC webhooks, multi-instance coordination,
-> alerting, migration tooling — is documented as future work, and every
+> genuinely proven by tests and live drills. The 2026-09 hardening pass
+> closed the four loudest gaps — JWT auth, webhook HMAC, opt-in
+> OpenTelemetry, verified Kafka HA topology — but the operational story
+> that remains (Postgres/Redis HA, multi-instance coordination, login
+> throttling, alerting, migration tooling) is still future work, and every
 > one of those gaps would be found in a real production review.
 
 If this project is presented as "a serious backend engineering project

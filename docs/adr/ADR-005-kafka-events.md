@@ -32,6 +32,10 @@ without coupling the reservation transaction to broker availability.
 
 - (+) Broker outage is an ops event, not an incident (outbox buffers).
 - (+) Topic count stays explainable; retention/ACLs map to aggregates.
+- (+) HA topology verified: `docker-compose.ha.yml` runs a 3-broker KRaft
+  cluster (RF=3, min.insync.replicas=2); a live leader-kill drill failed
+  over with zero message loss. The single-broker compose remains the dev
+  default for footprint reasons.
 - (−) In-memory attempt counters for consumer retries reset on restart —
   bounded staleness accepted at portfolio scale (a retry topic would be
   the production upgrade path).

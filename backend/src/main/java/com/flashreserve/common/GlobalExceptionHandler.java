@@ -70,6 +70,17 @@ public class GlobalExceptionHandler {
         return build("NOT_FOUND", "No such endpoint", 404);
     }
 
+    /**
+     * The strict HTTP firewall rejects malformed/unsafe requests (e.g.
+     * form-encoded bodies with non-identifier parameter names). That is a
+     * client error, not a server fault — must surface as 400, never 500.
+     */
+    @ExceptionHandler(org.springframework.security.web.firewall.RequestRejectedException.class)
+    public ResponseEntity<ApiError> handleFirewallRejection(
+            org.springframework.security.web.firewall.RequestRejectedException ex) {
+        return build("INVALID_REQUEST", "Malformed request rejected", 400);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleUnexpected(Exception ex) {
         log.error("Unhandled exception", ex);

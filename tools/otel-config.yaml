@@ -1,0 +1,21 @@
+# Minimal OTLP receiver + console exporter for the demo stack.
+# Production swaps `logging` for jaeger/tempo/zipkin exporters.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+processors:
+  batch:
+
+exporters:
+  logging:
+    verbosity: detailed
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [logging]

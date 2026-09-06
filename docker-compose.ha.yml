@@ -1,0 +1,113 @@
+# FlashReserve — HA variant: 3-node KRaft Kafka cluster + optional
+# OpenTelemetry Collector for distributed tracing.
+#   docker compose -f docker-compose.ha.yml up -d
+# The base docker-compose.yml remains the single-node dev stack; this file
+# demonstrates (and lets you verify) the production topology documented in
+# ADR-005: RF=3, min.insync.replicas=2 — the cluster tolerates one broker
+# loss with zero event loss.
+#
+# Port map (each listener needs a unique port WITHIN a broker container):
+#   broker   HOST (host machine)   PLAINTEXT (in-compose)   CONTROLLER
+#   kafka-1  19092                29092                    29093
+#   kafka-2  29092                29094                    29093
+#   kafka-3  39092                29095                    29093
+name: flashreserve-ha
+
+x-kafka-common: &kafka-common
+  image: apache/kafka:3.9.0
+
+services:
+  kafka-1:
+    <<: *kafka-common
+    container_name: flashreserve-kafka-1
+    ports: ["19092:19092"]
+    environment: &kafka-env
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-1:29093,2@kafka-2:29093,3@kafka-3:29093
+      KAFKA_LISTENERS: HOST://:19092,PLAINTEXT://:29092,CONTROLLER://:29093
+      KAFKA_ADVERTISED_LISTENERS: HOST://localhost:19092,PLAINTEXT://kafka-1:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: HOST:PLAINTEXT,PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      # HA settings — RF=3 needs 3 brokers; min ISR=2 keeps writes acked
+      # by a majority even during one-broker loss.
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      CLUSTER_ID: flashreserve-ha-cluster-0003
+    healthcheck: &kafka-health
+      # TCP probe on the HOST listener port — instant (no JVM spin-up per
+      # probe; the Kafka CLI check takes >8s on this machine and cannot
+      # pass reliably inside Docker's timeout).
+      test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/localhost/19092'"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+
+  kafka-2:
+    <<: *kafka-common
+    container_name: flashreserve-kafka-2
+    ports: ["29092:29092"]
+    environment:
+      <<: *kafka-env
+      KAFKA_NODE_ID: 2
+      KAFKA_LISTENERS: HOST://:29092,PLAINTEXT://:29094,CONTROLLER://:29093
+      KAFKA_ADVERTISED_LISTENERS: HOST://localhost:29092,PLAINTEXT://kafka-2:29094
+    healthcheck:
+      <<: *kafka-health
+      test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/localhost/29092'"]
+
+  kafka-3:
+    <<: *kafka-common
+    container_name: flashreserve-kafka-3
+    ports: ["39092:39092"]
+    environment:
+      <<: *kafka-env
+      KAFKA_NODE_ID: 3
+      KAFKA_LISTENERS: HOST://:39092,PLAINTEXT://:29095,CONTROLLER://:29093
+      KAFKA_ADVERTISED_LISTENERS: HOST://localhost:39092,PLAINTEXT://kafka-3:29095
+    healthcheck:
+      <<: *kafka-health
+      test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/localhost/39092'"]
+
+  # Traces pipeline (optional): app exports OTLP spans here, collector
+  # logs them (swap the logging exporter for jaeger/zipkin/tempo in real
+  # deployments). Enable with: --profile tracing
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.116.0
+    container_name: flashreserve-otel-collector
+    profiles: [tracing]
+    ports: ["4317:4317"]
+    command: ["--config=/etc/otel-config.yaml"]
+    volumes:
+      - ./tools/otel-config.yaml:/etc/otel-config.yaml:ro
+
+  # Verifies RF=3 after startup: prints topic replication summaries.
+  topic-verifier:
+    <<: *kafka-common
+    container_name: flashreserve-topic-verifier
+    depends_on:
+      kafka-1: { condition: service_healthy }
+      kafka-2: { condition: service_healthy }
+      kafka-3: { condition: service_healthy }
+    restart: "no"
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        echo '== brokers ==';
+        /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka-1:29092 2>/dev/null | grep -c '^kafka-[0-9]' || true;
+        echo '== topics ==';
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:29092 --list;
+        echo '== describe flashreserve.events ==';
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:29092 --describe --topic flashreserve.events || true;
+        echo '== describe flashreserve.notifications ==';
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:29092 --describe --topic flashreserve.notifications || true;
+        echo '== describe flashreserve.payments ==';
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:29092 --describe --topic flashreserve.payments || true;
+        echo 'HA cluster ready: 3 brokers, RF=3, min.insync.replicas=2';

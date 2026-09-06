@@ -7,16 +7,34 @@ import type { Reservation, InventoryPool, Order, ChargeResult, AdminMetrics, Not
 const BASE = import.meta.env.VITE_API_BASE ?? '';
 
 export interface Auth {
+  token: string;
   email: string;
-  password: string;
+}
+
+export interface LoginResponse {
+  accessToken: string;
+  tokenType: string;
+  expiresIn: number;
+  user: { id: string; email: string; role: string };
 }
 
 function headers(auth: Auth, extra: Record<string, string> = {}): HeadersInit {
   return {
-    Authorization: 'Basic ' + btoa(auth.email + ':' + auth.password),
+    Authorization: `Bearer ${auth.token}`,
     'Content-Type': 'application/json',
     ...extra,
   };
+}
+
+/** Exchanges credentials for a JWT via POST /api/auth/login. */
+export async function login(email: string, password: string): Promise<Auth> {
+  const res = await fetch(`${BASE}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  const body = (await parse<LoginResponse>(res)) as LoginResponse;
+  return { token: body.accessToken, email: body.user.email };
 }
 
 export class ApiError extends Error {

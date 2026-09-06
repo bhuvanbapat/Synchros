@@ -53,6 +53,15 @@ management:
   metrics:
     tags:
       application: flashreserve
+  tracing:
+    # Opt-in distributed tracing: set OTEL_EXPORTER_OTLP_ENDPOINT to enable.
+    # When absent, no exporter is configured and tracing stays dormant.
+    enabled: ${OTEL_TRACING_ENABLED:false}
+    sampling:
+      probability: ${OTEL_SAMPLING_PROBABILITY:1.0}
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:}
 
 logging:
   level:
@@ -79,3 +88,7 @@ flashreserve:
     success-weight: ${PAYMENT_SUCCESS_WEIGHT:0.85}
     failure-weight: ${PAYMENT_FAILURE_WEIGHT:0.10}
     timeout-weight: ${PAYMENT_TIMEOUT_WEIGHT:0.05}
+    webhook-secret: ${PAYMENT_WEBHOOK_SECRET:dev-only-webhook-secret-change-me-0123456789}
+  jwt:
+    secret: ${JWT_SECRET:dev-only-jwt-secret-change-me-0123456789abcdef}
+    ttl-seconds: ${JWT_TTL_SECONDS:3600}

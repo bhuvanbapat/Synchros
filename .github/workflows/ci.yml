@@ -59,8 +59,10 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Lint
-        run: npx oxlint src
+      - name: Lint (oxlint + type-check)
+        run: |
+          npx oxlint src
+          npm run lint
 
       - name: Test
         run: npm test -- --run --pool=threads

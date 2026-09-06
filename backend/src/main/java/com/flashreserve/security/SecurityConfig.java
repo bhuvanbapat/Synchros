@@ -16,9 +16,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * HTTP Basic auth for the demo (documented as a portfolio-scale choice in
- * docs/SECURITY.md — swap for JWT/OAuth in production without touching
- * ownership checks, which live in services via userId scoping).
+ * JWT bearer-token auth (Basic retained for the login handshake only —
+ * login still POSTs credentials, the response now carries a token).
+ * Ownership checks live in services via userId scoping and are fully
+ * auth-mechanism-agnostic (see docs/SECURITY.md).
  */
 @Configuration
 @EnableWebSecurity
@@ -27,9 +28,11 @@ public class SecurityConfig {
     private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
     private final FlashUserDetailsService userDetailsService;
+    private final JwtAuthFilter jwtAuthFilter;
 
-    public SecurityConfig(FlashUserDetailsService userDetailsService) {
+    public SecurityConfig(FlashUserDetailsService userDetailsService, JwtAuthFilter jwtAuthFilter) {
         this.userDetailsService = userDetailsService;
+        this.jwtAuthFilter = jwtAuthFilter;
     }
 
     /**
@@ -46,7 +49,7 @@ public class SecurityConfig {
                 "http://localhost:5173"));
         config.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(java.util.List.of("Authorization", "Content-Type",
-                "Idempotency-Key", "X-Request-Id"));
+                "Idempotency-Key", "X-Request-Id", "X-Signature"));
         config.setMaxAge(3600L);
         var source = new org.springframework.web.cors.UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
@@ -64,20 +67,22 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers("/actuator/**").hasRole("ADMIN")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/payment-webhooks").permitAll() // signature below
+                        .requestMatchers("/api/payment-webhooks").permitAll() // HMAC below
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll() // static frontend
                 )
-                .httpBasic(basic -> basic.authenticationEntryPoint((req, res, ex) -> {
-                    res.setStatus(HttpStatus.UNAUTHORIZED.value());
-                    res.setHeader("WWW-Authenticate", "Basic realm=\"flashreserve\"");
-                    res.setContentType("application/json");
-                    res.getWriter().write(
-                            "{\"code\":\"UNAUTHORIZED\",\"message\":\"Authentication required\"}");
-                }))
+                .addFilterBefore(jwtAuthFilter,
+                        org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(eh -> eh
-                        .accessDeniedHandler((req, res, ex) -> {
+                        .authenticationEntryPoint((req, res, ex) -> {
                             // Same structured error model as the rest of the API.
+                            res.setStatus(HttpStatus.UNAUTHORIZED.value());
+                            res.setHeader("WWW-Authenticate", "Bearer realm=\"flashreserve\"");
+                            res.setContentType("application/json");
+                            res.getWriter().write(
+                                    "{\"code\":\"UNAUTHORIZED\",\"message\":\"Authentication required\"}");
+                        })
+                        .accessDeniedHandler((req, res, ex) -> {
                             res.setStatus(HttpStatus.FORBIDDEN.value());
                             res.setContentType("application/json");
                             res.getWriter().write(

@@ -68,12 +68,27 @@ counts by state, outbox counts by state, dead-letter count.
 `/api/admin/audit?limit=`, `/api/admin/analytics` (event-type rollups),
 `POST /api/admin/reconciliation`, `POST /api/admin/maintenance/purge-expired-idempotency`.
 
-## Tracing (what exists, what's deferred)
+## Tracing (correlation IDs always, OTel opt-in)
 
 Request-ID correlation spans API → service → DB/log → outbox → audit. The
 same `eventId` identifies an event from outbox row → Kafka message →
 processed_event marker, so an event's journey is reconstructable from
-tables + logs. OpenTelemetry spans are **not** wired: for a single-node
-portfolio demo the operational payoff did not justify the fragility —
-documented as a deliberate limitation; the correlation IDs make the
-critical paths debuggable today.
+tables + logs.
+
+OpenTelemetry is wired but **opt-in** (micrometer-tracing bridge + OTLP
+exporter): set `OTEL_TRACING_ENABLED=true` and
+`OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4317` to export spans.
+When disabled (the default) no exporter is configured and the app runs
+with zero tracing overhead — correlation IDs remain the always-on
+baseline that makes critical paths debuggable without any infra.
+
+The HA compose stack ships a collector profile:
+
+```
+docker compose -f docker-compose.ha.yml up -d --profile tracing
+# app: OTEL_TRACING_ENABLED=true \
+#      OTEL_EXPORTER_OTLP_ENDPOINT=http://flashreserve-otel-collector:4317
+```
+
+`tools/otel-config.yaml` holds the collector config (console exporter for
+the demo — swap to Jaeger/Tempo/zipkin for real dashboards).

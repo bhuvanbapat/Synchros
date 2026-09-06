@@ -2,18 +2,39 @@
 
 ## Authentication / authorization
 
-- **Auth**: HTTP Basic over TLS in a real deployment (portfolio choice —
-  swap for JWT/OAuth2 without touching ownership logic, which lives in
-  services). Stateless: `SessionCreationPolicy.STATELESS`, no cookies.
+- **Auth**: JWT bearer tokens (HS256, standard JWS compact serialization,
+  JDK-only implementation — no external library). `POST /api/auth/login`
+  validates credentials via the `AuthenticationManager` and returns
+  `{accessToken, tokenType, expiresIn, user}`; every API call presents
+  `Authorization: Bearer <token>`. Stateless:
+  `SessionCreationPolicy.STATELESS`, no cookies. TLS remains a deployment
+  concern (terminate at the LB/ingress).
+  - **Why HS256**: single issuer = single verifier (this service), so a
+    symmetric shared secret is the simplest correct option. Multi-service
+    deployments switch to RS256 (verifiers hold the public key only) by
+    replacing `JwtService` — no caller changes (see Known limitations).
+  - **Token binding**: subject = email; custom claims carry the numeric DB
+    user id + role, so ownership checks (userId scoping in services) are
+    completely auth-mechanism-agnostic.
+  - **Fresh-principal reload**: `JwtAuthFilter` re-loads the user from the
+    DB on every authenticated request — suspension/role changes take
+    effect immediately; a valid token alone can never vouch for standing.
+  - **Verification discipline**: constant-time signature comparison
+    (`MessageDigest.isEqual`), 60s expiry leeway for restart skew, startup
+    fails hard if the secret is < 32 chars. Tampered, expired, and
+    wrong-secret tokens all verify to null → 401 (AuthHardeningIT).
 - **Passwords**: bcrypt (`BCryptPasswordEncoder`), cost 10. Seed hashes are
   of the literal demo password `password` and are documented as demo-only.
+  Login never returns password material; tokens carry no secrets.
 - **Account standing**: `SUSPENDED` accounts are rejected at
-  `loadUserByUsername` (`DisabledException`) — auth checks standing, not
-  just credentials.
+  `loadUserByUsername` (`DisabledException`) — and because the JWT filter
+  re-loads the principal per request, suspension kills access on the very
+  next call even with a live token.
 - **Roles**: `USER`, `ADMIN` (DB CHECK-constrained). Enforced by
   `SecurityConfig`: `/api/admin/**` and `/actuator/**` (beyond health/info)
   require `ROLE_ADMIN`; everything under `/api/**` requires authentication;
-  `/api/payment-webhooks` and `/api/auth/**` are public by design.
+  `/api/payment-webhooks` (HMAC below) and `/api/auth/**` are public by
+  design.
 
 ## Ownership (anti-IDOR)
 
@@ -45,6 +66,18 @@ sequential DB id) was replaced with UUID lookup during the audit.
 Public endpoint by design (PSP callbacks cannot authenticate as users);
 hardened by:
 
+- **HMAC-SHA256 signature enforcement**: every delivery MUST carry
+  `X-Signature` — base64(HMAC-SHA256(raw payload bytes, shared secret)).
+  Verification happens over the **exact raw bytes** (a byte-preserving
+  capture filter wraps the request before JSON parsing, so re-serialization
+  can never break a signature) using a constant-time comparison. Unsigned
+  or tampered deliveries → 401 `WEBHOOK_SIGNATURE_INVALID` **before any
+  parsing or state change**. The secret (`PAYMENT_WEBHOOK_SECRET`) is
+  env-injected, must be ≥ 32 chars (startup fails otherwise), and is never
+  logged.
+  - The mock gateway's relay signs every simulated delivery with the same
+    secret, so the verification path runs on every payment in the system,
+    and a misconfigured secret fails fast in tests, not in production.
 - Strict validation before any state change: non-null UUID orderId,
   providerRef 1–128 chars, outcome ∈ {SUCCESS, FAILURE, TIMEOUT} —
   violations are 400 with no side effects.
@@ -52,11 +85,9 @@ hardened by:
   DUPLICATE_CALLBACK/LATE_CALLBACK attempt rows (audit-visible), never a
   second business effect.
 - Late/garbage callbacks cannot corrupt state: terminal orders absorb
-  them; unknown orders 404.
-- Documented production step (deliberately not simulated here): verify an
-  HMAC-SHA256 signature header against the PSP secret, constant-time
-  compare, per-provider replay window. The controller is the single point
-  where that check slots in.
+  them; unknown orders 404. A correctly signed callback for an unknown
+  order passes the HMAC gate and then 404s — signature proves origin, not
+  authorization (AuthHardeningIT pins this exact distinction).
 
 ## Input validation
 
@@ -96,23 +127,34 @@ details leak (GlobalExceptionHandler).
 |---|---|---|
 | IDOR (user A reads B's reservation/order) | owner-scoped queries + locks | ApiSecurityIT |
 | Unauthorized admin access | role check in filter chain | ApiSecurityIT |
-| Duplicate / replayed reservation requests | idempotency keys + fingerprints | ApiIdempotencyIT, ConcurrentIdempotencyClaimIT |
-| Malicious payment callback (forged/refunded) | strict validation + idempotent application + (prod: HMAC) | PaymentFlowIT |
+| Forged / tampered JWT | HS256 constant-time verify, tamper+expiry+wrong-secret rejected | AuthHardeningIT, ApiSecurityIT |
+| Stolen-token use after account suspension | fresh principal reload per request | (unit-level, loadUserByUsername) |
+| Unsigned / tampered payment callback | HMAC-SHA256 over raw bytes, constant-time compare, 401 pre-parse | AuthHardeningIT (over real HTTP) |
+| Malicious payment callback (forged/refunded) | strict validation + idempotent application + HMAC | PaymentFlowIT |
 | Duplicate payment callbacks (double-confirm) | order lock + payment state filter | PaymentFlowIT (8-way concurrent) |
+| Duplicate / replayed reservation requests | idempotency keys + fingerprints | ApiIdempotencyIT, ConcurrentIdempotencyClaimIT |
 | Event spoofing / duplicate delivery | processed_event dedup marker | EventHandlersTest |
 | SQL injection | parameterized queries only | ApiSecurityIT |
 | Secret leakage | .env gitignored, structured errors, no traces in responses | review |
 | Rate-limit bypass attempt flood | Redis token bucket per user | flash-sale run (429s observed) |
 | Malformed event payload | immediate dead_letter quarantine | DeadLetterServiceTest |
+| Malformed request that trips the strict HTTP firewall | RequestRejectedException → structured 400 | (verified live, smoke) |
 | Privilege escalation | role stored in DB with CHECK, set only at registration (USER) | ApiSecurityIT |
 | Unauthorized admin actions | `/api/admin/**` ROLE_ADMIN | ApiSecurityIT |
 | Enumeration of ids | public UUID identifiers | (design) |
-| Suspended account usage | DisabledException at auth | (unit-level, loadUserByUsername) |
+| Suspended account usage | DisabledException at auth + per-request reload | (unit-level, loadUserByUsername) |
 
 ## Known limitations (documented, deliberate)
 
-- HTTP Basic without TLS is demo-only; production requires TLS + JWT/OIDC.
-- Webhook signature verification is documented but not simulated (there is
-  no real PSP to sign).
+- JWT uses HS256 (symmetric): correct for a single-service system; a
+  multi-service deployment would switch to RS256 so verifiers never hold
+  the signing key (drop-in change inside `JwtService`).
+- No token revocation list / refresh-token rotation: tokens are short-lived
+  (1h default) and suspension is enforced per-request via the fresh
+  principal reload — a revocation table would be the next addition.
+- Webhook HMAC assumes a single PSP relationship (one shared secret);
+  multi-PSP setups would key the secret per provider.
 - No account lockout after repeated bad logins (rate limiting is on the
   reservation path; an auth-attempt limiter would be the next addition).
+- TLS is external to the app (terminate at LB/ingress) — tokens must not
+  cross untrusted hops in clear.

@@ -28,6 +28,7 @@ public class DomainException extends RuntimeException {
         RATE_LIMIT_EXCEEDED(429, "Too many requests; slow down"),
         UNAUTHORIZED(401, "Authentication required"),
         FORBIDDEN(403, "You do not have access to this resource"),
+        WEBHOOK_SIGNATURE_INVALID(401, "Invalid or missing webhook signature"),
         INVALID_REQUEST(400, "Request validation failed"),
         NOT_FOUND(404, "Resource not found");
 

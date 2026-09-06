@@ -8,6 +8,7 @@ vi.mock('./api', async () => {
   const actual = await vi.importActual<typeof import('./api')>('./api');
   return {
     ...actual,
+    login: vi.fn(),
     listEvents: vi.fn(),
     fetchInventory: vi.fn(),
     createReservation: vi.fn(),
@@ -20,6 +21,7 @@ vi.mock('./api', async () => {
 });
 
 import {
+  login,
   listEvents,
   fetchInventory,
   createReservation,
@@ -29,6 +31,7 @@ import {
 } from './api';
 
 const mocked = {
+  login: vi.mocked(login),
   listEvents: vi.mocked(listEvents),
   fetchInventory: vi.mocked(fetchInventory),
   createReservation: vi.mocked(createReservation),
@@ -37,7 +40,7 @@ const mocked = {
   payOrder: vi.mocked(payOrder),
 };
 
-const AUTH = { email: 'alice@example.com', password: 'password' };
+const AUTH = { token: 'test-jwt-token', email: 'alice@example.com' };
 const EVENT = {
   id: 'ev-1',
   name: 'Neon Pulse Live',
@@ -61,6 +64,7 @@ const RESERVATION = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocked.login.mockResolvedValue(AUTH);
   mocked.listEvents.mockResolvedValue([EVENT]);
   mocked.fetchInventory.mockResolvedValue(POOLS);
   mocked.createReservation.mockResolvedValue(RESERVATION);
@@ -72,7 +76,7 @@ describe('App — inventory display', () => {
     mocked.listEvents.mockResolvedValue([EVENT]);
     render(<App />);
     await userEvent.clear(screen.getByLabelText(/email/i)); await userEvent.type(screen.getByLabelText(/email/i), AUTH.email);
-    await userEvent.clear(screen.getByLabelText(/password/i)); await userEvent.type(screen.getByLabelText(/password/i), AUTH.password);
+    await userEvent.clear(screen.getByLabelText(/password/i)); await userEvent.type(screen.getByLabelText(/password/i), AUTH.token);
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     await waitFor(() => expect(screen.getByText('Neon Pulse Live')).toBeInTheDocument());
@@ -84,7 +88,7 @@ describe('App — inventory display', () => {
   it('marks the sold-out section and keeps Reservable sections enabled', async () => {
     render(<App />);
     await userEvent.clear(screen.getByLabelText(/email/i)); await userEvent.type(screen.getByLabelText(/email/i), AUTH.email);
-    await userEvent.clear(screen.getByLabelText(/password/i)); await userEvent.type(screen.getByLabelText(/password/i), AUTH.password);
+    await userEvent.clear(screen.getByLabelText(/password/i)); await userEvent.type(screen.getByLabelText(/password/i), AUTH.token);
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
     await waitFor(() => screen.getByTestId('pool-FLOOR'));
     expect(screen.getByText('Sold out')).toBeDisabled();
@@ -96,7 +100,7 @@ describe('App — reservation flow', () => {
   async function loginAndReserve() {
     render(<App />);
     await userEvent.clear(screen.getByLabelText(/email/i)); await userEvent.type(screen.getByLabelText(/email/i), AUTH.email);
-    await userEvent.clear(screen.getByLabelText(/password/i)); await userEvent.type(screen.getByLabelText(/password/i), AUTH.password);
+    await userEvent.clear(screen.getByLabelText(/password/i)); await userEvent.type(screen.getByLabelText(/password/i), AUTH.token);
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
     await waitFor(() => screen.getByTestId('pool-FLOOR'));
     await userEvent.click(screen.getByRole('button', { name: /Reserve 1/i }));
@@ -118,7 +122,7 @@ describe('App — reservation flow', () => {
     );
     render(<App />);
     await userEvent.clear(screen.getByLabelText(/email/i)); await userEvent.type(screen.getByLabelText(/email/i), AUTH.email);
-    await userEvent.clear(screen.getByLabelText(/password/i)); await userEvent.type(screen.getByLabelText(/password/i), AUTH.password);
+    await userEvent.clear(screen.getByLabelText(/password/i)); await userEvent.type(screen.getByLabelText(/password/i), AUTH.token);
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
     await waitFor(() => screen.getByTestId('pool-FLOOR'));
     await userEvent.click(screen.getByRole('button', { name: /Reserve 1/i }));

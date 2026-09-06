@@ -40,6 +40,10 @@ public abstract class PostgresIntegrationBase {
         // Tests drive expiration/outbox logic synchronously; disable the
         // background jobs so they never race with assertions.
         registry.add("flashreserve.jobs.enabled", () -> "false");
+        registry.add("flashreserve.jwt.secret",
+                () -> "it-test-jwt-secret-0123456789-it-test-jwt-secret");
+        registry.add("flashreserve.payment.webhook-secret",
+                () -> "it-test-webhook-secret-0123456789-it-test-wh");
         registry.add("spring.flyway.clean-disabled", () -> "false");
         registry.add("spring.datasource.hikari.maximum-pool-size", () -> "12");
     }

@@ -20,17 +20,17 @@ FlashReserve/
 │   ├── pom.xml                        dependencies (see §3)
 │   ├── Dockerfile                     multi-stage build -> runtime image
 │   └── src/
-│       ├── main/java/com/flashreserve/    21 packages, 81 files (§4)
+│       ├── main/java/com/flashreserve/    23 packages, 88 files (§4)
 │       ├── main/resources/
 │       │   ├── application.yml            all config, env-overridable (§6)
 │       │   └── db/migration/              Flyway V1–V5 (§5)
-│       ├── test/java/com/flashreserve/    16 test files (§7)
+│       ├── test/java/com/flashreserve/    17 test files (§7)
 │       └── test/resources/application-test.yml
 ├── frontend/                         React 19 + TypeScript + Vite 8
 │   ├── src/
-│   │   ├── App.tsx            shop + admin dashboards, full user flow
+│   │   ├── App.tsx            shop + admin dashboards, JWT login, full user flow
 │   │   ├── HoldCountdown.tsx  server-authoritative TTL countdown
-│   │   ├── api.ts             typed API client, structured ApiError
+│   │   ├── api.ts             typed API client, Bearer-token auth, structured ApiError
 │   │   ├── types.ts           API DTO types
 │   │   └── App.test.tsx       5 vitest component tests
 │   └── (vite.config.ts proxies /api -> :8081 in dev)
@@ -38,11 +38,17 @@ FlashReserve/
 │   ├── flash-sale.js
 │   ├── duplicate-request.js
 │   ├── steady-traffic.js
-│   └── helpers.js
-├── docs/                             11 deep docs + 10 ADRs (§9)
+│   └── helpers.js                   JWT login + per-VU token cache
+├── docs/                             13 deep docs + 12 ADRs (§9)
 ├── .github/workflows/ci.yml          CI (§10)
-├── docker-compose.yml                postgres + redis + kafka + app
-├── .env.example                      every tunable, safe defaults
+├── docker-compose.yml                postgres + redis + kafka + app (single-node dev)
+├── docker-compose.ha.yml             3-broker KRaft Kafka (RF=3, min ISR=2) + OTel collector profile
+├── tools/
+│   ├── ha-create-topics.sh           provision RF=3 app topics
+│   ├── ha-chaos-drill.sh            leader-kill verification (used live)
+│   ├── otel-config.yaml             collector config (console exporter)
+│   └── smoke.ps1                    live JWT+HMAC+flow smoke (all green)
+├── .env.example                      every tunable incl. JWT/webhook secrets, safe defaults
 ├── BUILD_STATUS.md                   completion checklist
 ├── CHANGELOG.md · CONTRIBUTING.md · LICENSE (MIT) · README.md
 └── .gitignore · .gitattributes       no secrets/binaries; LF-safe scripts
@@ -103,18 +109,21 @@ confirm = idempotent no-op. Illegal confirm (lost expiry race) = domain
 | spring-boot-starter-web | REST API (Tomcat) |
 | spring-boot-starter-data-jpa | persistence (Hibernate 7) |
 | spring-boot-starter-validation | Bean Validation on all DTOs |
-| spring-boot-starter-security | Basic auth, roles, filter chain, CORS |
+| spring-boot-starter-security | JWT filter chain, roles, CORS |
 | spring-boot-starter-actuator | health/info/metrics/prometheus endpoints |
 | spring-boot-starter-data-redis | availability-hint cache + rate-limit bucket store |
 | spring-boot-starter-kafka | outbox publisher + listeners |
 | micrometer-registry-prometheus | `/actuator/prometheus` scrape target |
+| micrometer-tracing-bridge-otel + opentelemetry-exporter-otlp | opt-in distributed tracing (OTLP export; dormant unless `OTEL_TRACING_ENABLED=true`) |
 | flyway-core + flyway-database-postgresql + spring-boot-flyway | explicit V1–V5 migrations; `ddl-auto: validate` |
 | postgresql (JDBC) | the database |
 | test: spring-boot-starter-test, spring-security-test | test harness |
 | test: testcontainers (junit-jupiter, postgresql, kafka), spring-boot-testcontainers | real-Postgres ITs |
 
-No Lombok, no extraneous starters — 81 main source files, constructor
-injection throughout.
+No Lombok, no extraneous starters — 88 main source files, constructor
+injection throughout. The JWT implementation uses only the JDK
+(HS256 via `javax.crypto.Mac`), and the webhook signer likewise — zero
+auth libraries to audit.
 
 ---
 
@@ -126,7 +135,7 @@ injection throughout.
 | `inventory` | InventoryPool, InventoryPoolRepository, InventoryController | **oversell-critical**: `decrementAvailable` = atomic conditional UPDATE (`WHERE available >= :qty`); `incrementAvailable` for releases; UUID-only lookups |
 | `reservation` | Reservation, ReservationService, ReservationController, ReservationRepository, ReservationLockRepository, ReservationExpirationJob, ReservationDtos | hold creation (single tx: decrement + INSERT + outbox + audit), confirm/cancel (row-locked), TTL expiry job (conditional flip + release), ownership enforcement |
 | `order` | Order, OrderService, OrderController, OrderRepository, OrderLockRepository | order creation (reservation row lock + UNIQUE per reservation), payment application (order row lock, three-outcome switch) |
-| `payment` | MockPaymentGateway (weighted SUCCESS/FAILURE/TIMEOUT), PaymentRelay, PaymentWebhookController, PaymentWebhookService, Payment, PaymentAttempt, repositories | deterministic gateway; relay delivers through the real webhook path so idempotency is exercised |
+| `payment` | MockPaymentGateway (weighted SUCCESS/FAILURE/TIMEOUT), WebhookSigner (HMAC-SHA256), PaymentRelay (signs every delivery), PaymentWebhookController (verifies X-Signature over raw bytes), PaymentWebhookService, Payment, PaymentAttempt, repositories | deterministic gateway; relay delivers through the signed webhook path so HMAC verification + idempotency run on every simulated payment |
 | `idempotency` | IdempotencyService, IdempotencyKey, IdempotencyKeyRepository | (user, operation, key) claims via `INSERT .. ON CONFLICT DO NOTHING` (rowcount semantics — never exception-based, see ADR-007), SHA-256 fingerprints, cached replays, 24h TTL purge |
 | `outbox` | OutboxService (MANDATORY propagation — must join the business tx), OutboxEvent, OutboxRepository, OutboxPublisher, FlashReserveTopics | event rows commit with mutations; publisher drains with **zero broker I/O inside any transaction** (short read/mark txs via TransactionTemplate); bounded retries → DEAD |
 | `kafka` | EventConsumers (listeners), EventHandlers (transactional dedup + projections), ProcessedEvent, DeadLetterService, DeadLetter, ConditionalOnKafkaEnabled | at-least-once delivery, exactly-once effects via processed_event marker; poison quarantine after 5 attempts; flag-gated for hermetic tests |
@@ -136,9 +145,9 @@ injection throughout.
 | `notification` | Notification, NotificationService, NotificationRepository | user inbox projection |
 | `analytics` | AnalyticsEvent, AnalyticsService, AnalyticsRepository | event-feed projection + rollups for admin |
 | `audit` | AuditEvent, AuditService, AuditRepository | append-only trail; entries commit with the mutation (REQUIRED); requestId captured from MDC |
-| `security` | SecurityConfig, FlashUserDetails(+Service), CurrentUserArgumentResolver, UnauthorizedException | Basic auth entry point, structured 401/403 JSON, ROLE_ADMIN gates on `/api/admin/**` + `/actuator/**`, CORS allow-list, suspended-account rejection, resolver for `@CurrentUser` |
+| `security` | SecurityConfig, JwtAuthFilter, JwtService, FlashUserDetails(+Service), CurrentUserArgumentResolver, UnauthorizedException | JWT bearer auth (HS256, JDK-only), fresh-principal reload per request, structured 401/403 JSON, ROLE_ADMIN gates on `/api/admin/**` + `/actuator/**`, CORS allow-list, suspended-account rejection, resolver for `@CurrentUser` |
 | `user` | User, UserService, AuthController, UserController, AuthDtos, UserRepository | register (race-safe: UNIQUE collision → clean 400), login validation, /me endpoints |
-| `common` | DomainException (+ 12 stable error codes), GlobalExceptionHandler, NotFoundException, RequestIdFilter | `{code, message, requestId, timestamp}` error model; X-Request-Id propagation into MDC |
+| `common` | DomainException (+ 13 stable error codes), GlobalExceptionHandler (incl. firewall rejections → 400), NotFoundException, RequestIdFilter, RawBodyCaptureFilter | `{code, message, requestId, timestamp}` error model; X-Request-Id propagation into MDC; byte-preserving raw-body capture for HMAC |
 | `config` | FlashReserveProperties, PropertiesConfig, WebMvcConfig | typed, env-overridable configuration |
 | `metrics` | FlashMetrics | business counters/timers (see §11) |
 | `health` | HealthController | app-level DB + Redis checks with pooled-connection hygiene |
@@ -167,6 +176,10 @@ frozen; changes only ever as new migrations.
 | Knob | Default | Effect |
 |---|---|---|
 | `SPRING_DATASOURCE_URL/USERNAME/PASSWORD` | localhost:5432/flashreserve | DB connection |
+| `JWT_SECRET` | dev-only-… (≥32 chars) | HS256 signing key — startup fails below 32 |
+| `JWT_TTL_SECONDS` | 3600 | token lifetime |
+| `PAYMENT_WEBHOOK_SECRET` | dev-only-… (≥32 chars) | webhook HMAC shared secret |
+| `OTEL_TRACING_ENABLED` / `OTEL_EXPORTER_OTLP_ENDPOINT` | false / (empty) | OpenTelemetry opt-in |
 | `REDIS_HOST/PORT` | localhost:6379 | cache + rate limit |
 | `KAFKA_BOOTSTRAP_SERVERS` | localhost:9092 | broker |
 | `SERVER_PORT` | 8081 | API (8080 avoided: commonly claimed by k8s tooling) |
@@ -184,12 +197,13 @@ Kafka producer: `acks=all` + `enable.idempotence=true`.
 
 ---
 
-## 7. Test inventory (16 files — 45 backend + 5 frontend tests)
+## 7. Test inventory (17 files — 55 backend + 5 frontend tests)
 
 | Test | What it proves |
 |---|---|
 | `ReservationStateMachineTest` | legal/illegal transition edges |
 | `FingerprintTest` | idempotency hashing + canonical serialization |
+| `AuthHardeningIT` | **JWT round-trip / tamper / expiry / wrong-secret; HMAC round-trip / tamper; unsigned + tampered webhooks rejected 401 over real HTTP; signed-but-unknown-order passes HMAC then 404s (origin ≠ authorization)** |
 | `OversellPreventionIT` | **100 clients vs 10 units → ≤10 succeed; available ≥ 0**; repeated 3× with different sizes |
 | `ExpirationIT` | expiry releases inventory; confirm-vs-expire race → exactly one winner; confirm-after-expiry → clean failure |
 | `OrderCreateExpirationRaceIT` | create-vs-expire race, 20 rounds → 0 illegal outcomes; 8-way concurrent order creation → 1 order row |
@@ -197,8 +211,8 @@ Kafka producer: `acks=all` + `enable.idempotence=true`.
 | `PaymentRetryIT` | **timeout no longer bricks retries**: TIMEOUT→SUCCESS confirms; repeated timeouts stay retryable; 8-way duplicate-email registration → 1 user + 7 clean 400s |
 | `IdempotencyIT` | replay / conflict / different-keys / in-flight semantics |
 | `ConcurrentIdempotencyClaimIT` | **16 threads racing one key → 1 Fresh, 15 InFlight, 0 exceptions** (the regression test for the ON CONFLICT fix) |
-| `ApiIdempotencyIT` | end-to-end over HTTP: replay returns the original reservation with `X-Idempotent-Replay: true`; same key + different body → 409 |
-| `ApiSecurityIT` | 401s, wrong password, admin gate (user 403 / admin 200), IDOR blocked, malformed body 400, negative quantity 400, SQL-injection fails safely |
+| `ApiIdempotencyIT` | end-to-end over HTTP (JWT): replay returns the original reservation with `X-Idempotent-Replay: true`; same key + different body → 409 |
+| `ApiSecurityIT` | 401s, wrong password, tampered + expired tokens, admin gate (user 403 / admin 200), IDOR blocked, malformed body 400, negative quantity 400, SQL-injection fails safely |
 | `OutboxIT` | outbox row commits with the mutation; rollback removes both |
 | `ReconciliationIT` | clean world consistent; manually corrupted counter detected; stuck hold detected and cleared by real expiry |
 | `EventHandlersTest` | consumer dedup suppresses duplicates before any effect; concurrent marker insert absorbed; order/payment project to analytics only |
@@ -214,10 +228,10 @@ and clean up terminal state so global reconciliation assertions hold.
 
 | Script | Scenario | Measured result (this machine) |
 |---|---|---|
-| `flash-sale.js` | N fresh users (parallel-batch registration) race one pool; expected statuses 201/409/429 declared | 500 VUs vs 100 units → **exactly 100 successes, 400 clean 409s, 0 5xx**, final availability exactly 0 |
+| `flash-sale.js` | N fresh users (parallel-batch registration, JWT login per VU) race one pool; expected statuses 201/409/429 declared | 500 VUs vs 100 units → **exactly 100 successes, 400 clean 409s, 0 5xx**, final availability exactly 0 |
 | `duplicate-request.js` | 20 VUs, ONE run-scoped key (env `RUN_TAG`), concurrent | **exactly 1 logical reservation**; 40/40 checks |
 | `steady-traffic.js` | ramp 2→20 VUs, 80% reads / 20% reserves | ~15.7 req/s; p50 371ms, p95 1.39s (honestly recorded vs the 500ms target, with cause) |
-| `helpers.js` | Basic-auth builder (no btoa in k6), business counters | — |
+| `helpers.js` | JWT login + per-VU token cache, business counters | — |
 
 These benchmarks found two shipped bugs during the audit (idempotency
 claim 500s; per-VU key generation) — that yield is the point (ADR-010).
@@ -242,7 +256,7 @@ relative imports — copy the scripts to a plain path to run.
 | `docs/DEMO.md` | step-by-step scripted walkthrough (all commands PowerShell-executable) |
 | `docs/RESUME_NOTES.md` | description, stack, hardest problems, mechanisms, measured results, 3 paste-ready resume bullets, limitations |
 | `docs/INTERVIEW_GUIDE.md` | 18 deep Q&As matching this implementation exactly |
-| `docs/adr/ADR-001…010` | modular monolith · Postgres authority · concurrency strategy · Redis scope · Kafka architecture · transactional outbox · idempotency model · state machines · testing strategy · load-testing strategy |
+| `docs/adr/ADR-001…012` | modular monolith · Postgres authority · concurrency strategy · Redis scope · Kafka architecture · transactional outbox · idempotency model · state machines · testing strategy · load-testing strategy · JWT auth · webhook HMAC + opt-in tracing + verified HA |
 
 ---
 
@@ -252,8 +266,9 @@ Two jobs, free-runner compatible:
 - **backend** (ubuntu, Temurin 25, maven cache): `chmod +x mvnw` → `./mvnw test` (real Testcontainers suite) → `./mvnw -DskipTests package`; surefire reports uploaded on failure.
 - **frontend** (Node 24, npm cache): `npm ci` → `oxlint src` → `npm test -- --run --pool=threads` → `npm run build`.
 
-Both steps were executed locally from scratch during the final audit
-(45/45, package SUCCESS, lint 0, 5/5, build green). The unix `mvnw`
+Both steps were executed locally from scratch during the final audit and
+re-run after the hardening pass (55/55, package SUCCESS, type-check clean,
+5/5, build green). The unix `mvnw`
 wrapper is committed with mode 100755 and LF-enforced via `.gitattributes`.
 
 ---
@@ -262,7 +277,7 @@ wrapper is committed with mode 100755 and LF-enforced via `.gitattributes`.
 
 | Endpoint | Auth | Purpose |
 |---|---|---|
-| `POST /api/auth/register` · `POST /api/auth/login` | public | account creation (race-safe), credential validation |
+| `POST /api/auth/register` · `POST /api/auth/login` | public | account creation (race-safe); **credential → JWT exchange** (`{accessToken, tokenType, expiresIn, user}`) |
 | `GET /api/events` · `GET /api/events/{id}` | user | catalog |
 | `GET /api/inventory?eventId=` · `GET /api/inventory/{uuid}` | user | availability hints (3s cache) |
 | `POST /api/reservations` (+`Idempotency-Key`) | user, rate-limited | create hold; replay/conflict semantics |
@@ -270,7 +285,7 @@ wrapper is committed with mode 100755 and LF-enforced via `.gitattributes`.
 | `POST /api/reservations/{id}/cancel` | owner | release held units |
 | `POST /api/orders` · `GET /api/orders...` | owner | checkout (idempotent per reservation) |
 | `POST /api/orders/{id}/pay` | owner | mock charge relayed through the webhook path |
-| `POST /api/payment-webhooks` | public (PSP) | idempotent outcome application |
+| `POST /api/payment-webhooks` | public (PSP) | idempotent outcome application; **X-Signature HMAC-SHA256 over raw bytes required — unsigned/tampered → 401** |
 | `GET /api/users/me` · `/me/notifications` | user | profile + Kafka-consumer inbox |
 | `GET /api/health` | user | DB + Redis status |
 | `GET /actuator/health,info` | public | liveness/readiness |
@@ -280,15 +295,19 @@ wrapper is committed with mode 100755 and LF-enforced via `.gitattributes`.
 | `POST /api/admin/maintenance/purge-expired-idempotency` | admin | TTL purge |
 
 Error model everywhere: `{code, message, requestId, timestamp}` —
-12 stable domain codes (INVENTORY_UNAVAILABLE, RESERVATION_EXPIRED,
-IDEMPOTENCY_CONFLICT, RATE_LIMIT_EXCEEDED, FORBIDDEN, …) mapped to
-correct HTTP statuses; 401/403 from the security layer use the same shape.
+13 stable domain codes (INVENTORY_UNAVAILABLE, RESERVATION_EXPIRED,
+IDEMPOTENCY_CONFLICT, RATE_LIMIT_EXCEEDED, WEBHOOK_SIGNATURE_INVALID,
+FORBIDDEN, …) mapped to correct HTTP statuses; 401/403 from the security
+layer and strict-firewall rejections use the same shape.
 
 ---
 
 ## 12. Frontend behavior
 
-- **Login** validates against the real API before entering.
+- **Login exchanges credentials for a JWT** via `POST /api/auth/login`
+  (401 on bad creds); every subsequent call sends `Authorization:
+  Bearer <token>` — no password is ever held in client state beyond the
+  login form.
 - **Shop**: events → per-section availability (sold-out states disabled) →
   reserve (idempotency key per click-intent) → hold panel with
   server-authoritative countdown (refetches on timer zero — backend
@@ -314,11 +333,15 @@ correct HTTP statuses; 401/403 from the security layer use the same shape.
 | available + held + sold = total for every pool | SQL-verified post-benchmark + reconciliation endpoint |
 | Outbox: 700+ events published, 0 failed, 0 dead across all runs | admin metrics |
 | Reconciliation consistent, 0 findings after every chaos drill | admin endpoint |
+| **JWT: login → Bearer → full flow; tampered/expired token → 401; suspension enforced on next call** | live smoke (tools/smoke.ps1) + AuthHardeningIT |
+| **HMAC: unsigned webhook → 401 pre-parse; tampered payload/signature → 401; signed delivery applies idempotently** | live smoke + AuthHardeningIT (over real HTTP) |
+| **HA Kafka: leader killed → failover + ISR 3→2 → 10/10 messages, zero loss; broker rejoins** | live chaos drill (docker-compose.ha.yml + tools/ha-chaos-drill.sh) |
 
 ## 14. Known limitations (deliberate, documented)
 
-HTTP Basic + external TLS (portfolio scope; ownership checks are
-auth-agnostic) · webhook HMAC documented, not simulated · single
-broker/DB instance (HA topology in ADRs) · single-machine benchmark
-numbers (invariants are the portable part) · OpenTelemetry deferred in
-favor of correlation IDs · consumer retry counters in-memory.
+HS256 symmetric JWT (right for single service; RS256 for multi-service) ·
+no refresh/revocation (short TTL + per-request suspension reload cover it) ·
+webhook single shared secret, no replay window · Postgres/Redis single
+instance (managed-service HA territory; Kafka HA verified) · single-machine
+benchmark numbers (invariants are the portable part) · login endpoint not
+rate-limited yet. Full detail in docs/LIMITATIONS.md.

@@ -100,11 +100,28 @@ retries, but consumer dedup remains mandatory for redeliveries.
 
 ## Q: What if a payment callback is duplicated?
 
-The webhook path locks the order row, so callbacks serialize. The second
+Every delivery must first pass HMAC-SHA256 verification (X-Signature
+over the exact raw bytes — unsigned/tampered → 401 before parsing). The
+webhook path then locks the order row, so callbacks serialize. The second
 sees a terminal payment → records a DUPLICATE_CALLBACK attempt row
 (audit-visible) and returns the current state. Concurrent 8-way duplicate
 callbacks tested: exactly one confirmation. The relay deliberately makes
 duplicate delivery possible to exercise this.
+
+## Q: Why JWT instead of sessions or Basic auth?
+
+Stateless API, multiple eventual instances, no sticky sessions wanted.
+Basic sent credentials on every request (nothing to revoke, nothing to
+expire — but also zero defense against replay of the credential itself);
+JWT gives a signed, expiring capability with the user id + role inside,
+so ownership checks don't need a session store. Two deliberate choices
+worth defending: (1) the filter re-loads the principal from the DB on
+every request, so suspension/role changes bind immediately — the token
+authenticates, the database authorizes; (2) HS256 (symmetric) because
+issuer = verifier here; multi-service would switch to RS256 so
+verifiers hold only public keys. No refresh tokens/revocation — short
+TTL + per-request standing reload covers the realistic threats at this
+scale, and the next increment would be a revocation table.
 
 ## Q: Reservation expires at the same moment it's confirmed — what happens?
 

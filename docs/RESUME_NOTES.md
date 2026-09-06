@@ -7,13 +7,15 @@ ticketing domain) engineered around one question: *how do you let 500
 users fight over 100 units without overselling, double-charging, or losing
 an event?* Inventory ownership is strictly transactional in PostgreSQL
 (atomic conditional UPDATE + CHECK constraint backstop), every mutation is
-idempotent (DB-claimed idempotency keys, duplicate-safe payment webhooks,
+idempotent (DB-claimed idempotency keys, HMAC-verified payment webhooks,
 consumer-side event dedup), and all business events flow through a
-transactional outbox to Kafka with bounded retries and a dead-letter table.
-Correctness is proven by 45 automated tests including a 100-clients-vs-10-
-units oversell test, a 16-thread concurrent idempotency-claim test, and
-confirm-vs-expire race rounds — plus measured k6 benchmarks (500 VUs →
-exactly 100 successes, 0 errors).
+transactional outbox to Kafka with bounded retries and a dead-letter
+table. Auth is stateless JWT (HS256, JDK-only, fresh-principal reload so
+suspensions bind immediately). Correctness is proven by 55 automated tests
+including a 100-clients-vs-10-units oversell test, a 16-thread concurrent
+idempotency-claim test, and confirm-vs-expire race rounds — plus measured
+k6 benchmarks (500 VUs → exactly 100 successes, 0 errors) and a live
+Kafka leader-kill chaos drill (RF=3, zero message loss).
 
 ## Stack (actual)
 
@@ -63,7 +65,13 @@ short read/mark transactions with all broker I/O outside any transaction.
   one dev machine (single hot row is the bottleneck by design).
 - Steady mixed traffic: ~15.7 req/s, p95 1.39s (dev machine runs app +
   Postgres + Kafka + k6 together; documented honestly).
-- 45 backend tests + 5 frontend tests, all green.
+- **Kafka HA chaos drill**: killed the events-topic leader in a 3-broker
+  RF=3 cluster → leadership failed over, ISR 3→2, 10/10 messages
+  survived, broker rejoined after restart (docker-compose.ha.yml).
+- **Live security smoke**: JWT login → full reserve→order→signed-webhook
+  pay flow; unsigned + tampered webhooks and tampered JWTs all 401;
+  reconciliation consistent, 0 findings (tools/smoke.ps1).
+- 55 backend tests + 5 frontend tests, all green.
 
 ## Resume bullets (ready to paste)
 
@@ -74,15 +82,18 @@ short read/mark transactions with all broker I/O outside any transaction.
   benchmarks with zero oversells and zero 5xx responses.
 - Implemented exactly-once-effect semantics across the request path —
   DB-claimed idempotency keys with request fingerprinting and cached
-  replays, duplicate-safe payment webhooks, and Kafka consumer dedup —
+  replays, HMAC-SHA256-verified payment webhooks (byte-exact raw-body
+  signatures, constant-time compare), and Kafka consumer dedup —
   and diagnosed/fixed a subtle transaction rollback-only bug in the
   concurrent idempotency claim (Hibernate flush violation → commit-time
   UnexpectedRollbackException) via load testing.
 - Designed a transactional outbox (bounded retries, dead-letter state)
   with all broker I/O outside database transactions, so a Kafka outage
-  never blocks business traffic; verified event delivery with
-  Testcontainers-backed integration tests and live failure drills
-  (broker stop → buffered → drained on recovery).
+  never blocks business traffic; verified event delivery with live
+  failure drills and a 3-broker leader-kill chaos run (RF=3,
+  min.insync.replicas=2, zero message loss), plus stateless JWT auth
+  (HS256, JDK-only, per-request principal reload) across the API.
+
 
 ## Interview discussion topics
 
@@ -97,12 +108,15 @@ boundaries table.
 See [LIMITATIONS.md](LIMITATIONS.md) for the complete, unvarnished list —
 the summary version:
 
-- HTTP Basic auth, TLS assumed external (portfolio scope; ownership checks
-  are auth-mechanism-agnostic).
-- Webhook HMAC verification documented, not simulated (no real PSP).
-- Single Kafka broker / single Postgres — HA topology documented, not
-  deployed.
+- JWT auth is HS256 (symmetric): right for a single service; a
+  multi-service deployment would switch to RS256. No refresh tokens or
+  revocation list — short TTL + per-request suspension reload cover the
+  gaps. Login endpoint is not yet rate-limited.
+- Webhook HMAC is enforced and tested, but assumes a single PSP
+  relationship (one shared secret, no replay window).
+- Kafka HA topology is verified live (3 brokers, RF=3, leader-kill chaos
+  drill with zero message loss); Postgres/Redis remain single-instance.
 - Benchmarks are single-machine; absolute latencies reflect the
   environment, not the architecture's ceiling.
-- No OpenTelemetry spans (correlation IDs used instead) — documented
-  tradeoff.
+- OpenTelemetry is wired but opt-in and pointed nowhere by default
+  (correlation IDs remain the always-on baseline).

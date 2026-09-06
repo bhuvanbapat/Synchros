@@ -10,6 +10,7 @@ import {
   getReservation,
   listEvents,
   listMyNotifications,
+  login,
   payOrder,
   type Auth,
   type EventDto,
@@ -20,12 +21,11 @@ import { HoldCountdown } from './HoldCountdown';
 type View = 'shop' | 'admin';
 
 export default function App() {
-  const [auth, setAuth] = useState<Auth>({ email: '', password: '' });
-  const [authed, setAuthed] = useState(false);
+  const [auth, setAuth] = useState<Auth | null>(null);
   const [view, setView] = useState<View>('shop');
 
-  if (!authed) {
-    return <Login onLogin={(a) => { setAuth(a); setAuthed(true); }} />;
+  if (!auth) {
+    return <Login onLogin={(a) => setAuth(a)} />;
   }
 
   return (
@@ -63,9 +63,8 @@ function Login({ onLogin }: { onLogin: (a: Auth) => void }) {
     setBusy(true);
     setError(null);
     try {
-      // Validate credentials against the real API (401 on bad creds).
-      await listEvents({ email, password });
-      onLogin({ email, password });
+      // Exchange credentials for a JWT (401 on bad creds).
+      onLogin(await login(email, password));
     } catch (err) {
       setError(err instanceof ApiError ? `${err.code}: ${err.message}` : 'Network error');
     } finally {
