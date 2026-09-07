@@ -27,6 +27,11 @@ public abstract class PostgresIntegrationBase {
         POSTGRES.start();
     }
 
+    /** Cross-package accessor: the Kafka/Redis ITs share this one container. */
+    public static PostgreSQLContainer<?> postgres() {
+        return POSTGRES;
+    }
+
     @DynamicPropertySource
     static void datasource(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);

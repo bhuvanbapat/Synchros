@@ -12,6 +12,9 @@ import com.flashreserve.outbox.OutboxService;
 import com.flashreserve.reconciliation.ReconciliationService;
 import com.flashreserve.reservation.Reservation;
 import com.flashreserve.reservation.ReservationRepository;
+import com.flashreserve.security.CurrentUser;
+import com.flashreserve.security.FlashUserDetails;
+import com.flashreserve.user.User;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -36,6 +39,7 @@ public class AdminController {
     private final AnalyticsRepository analyticsRepository;
     private final ReconciliationService reconciliationService;
     private final com.flashreserve.idempotency.IdempotencyService idempotencyService;
+    private final com.flashreserve.user.AccountAdminService accountAdminService;
 
     public AdminController(InventoryPoolRepository poolRepository,
                            ReservationRepository reservationRepository,
@@ -44,7 +48,8 @@ public class AdminController {
                            AuditRepository auditRepository,
                            AnalyticsRepository analyticsRepository,
                            ReconciliationService reconciliationService,
-                           com.flashreserve.idempotency.IdempotencyService idempotencyService) {
+                           com.flashreserve.idempotency.IdempotencyService idempotencyService,
+                           com.flashreserve.user.AccountAdminService accountAdminService) {
         this.poolRepository = poolRepository;
         this.reservationRepository = reservationRepository;
         this.outboxRepository = outboxRepository;
@@ -53,6 +58,7 @@ public class AdminController {
         this.analyticsRepository = analyticsRepository;
         this.reconciliationService = reconciliationService;
         this.idempotencyService = idempotencyService;
+        this.accountAdminService = accountAdminService;
     }
 
     @GetMapping("/metrics")
@@ -130,6 +136,32 @@ public class AdminController {
     @PostMapping("/reconciliation")
     public ResponseEntity<ReconciliationService.ReconciliationReport> runReconciliation() {
         return ResponseEntity.ok(reconciliationService.reconcile());
+    }
+
+    // ---- account state management (suspension feature completion) ----
+
+    /**
+     * Suspend or reactivate a user account by their public id. Suspension
+     * binds immediately: every request re-loads the principal, so a
+     * suspended user 401s on their next call even with a live token.
+     */
+    @PostMapping("/users/{userPublicId}/state")
+    public Map<String, Object> setUserState(
+            @CurrentUser FlashUserDetails admin,
+            @PathVariable String userPublicId,
+            @RequestBody Map<String, String> body) {
+        String target = body.get("accountState");
+        if (target == null || target.isBlank()) {
+            throw new com.flashreserve.common.DomainException(
+                    com.flashreserve.common.DomainException.ErrorCode.INVALID_REQUEST,
+                    "Body must carry accountState: ACTIVE | SUSPENDED");
+        }
+        User target_ = accountAdminService.setState(
+                userPublicId, target.trim().toUpperCase(), admin.getUserId());
+        return Map.of(
+                "id", target_.getPublicId().toString(),
+                "email", target_.getEmail(),
+                "accountState", target_.getAccountState());
     }
 
     @PostMapping("/maintenance/purge-expired-idempotency")

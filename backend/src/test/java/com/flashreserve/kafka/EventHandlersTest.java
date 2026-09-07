@@ -102,4 +102,65 @@ class EventHandlersTest {
         verify(analyticsService).recordPaymentEvent(eq("PaymentSucceeded"), anyString());
         verifyNoInteractions(notificationService);
     }
+
+    // ---- strict payload contract (regression: userId=0 silent rows) ----
+
+    @Test
+    void missingUserIdFailsTheHandlerInsteadOfProjectingZero() {
+        UUID eventId = UUID.randomUUID();
+        when(processedRepository.findByEventIdAndConsumerGroup(eventId,
+                EventHandlers.GROUP)).thenReturn(Optional.empty());
+        JsonNode badPayload = MAPPER.readTree("{\"eventId\":\"" + eventId + "\"," +
+                "\"eventType\":\"ReservationConfirmed\"," +
+                "\"payload\":{\"reservationId\":\"x\"}}"); // no userId
+
+        assertThrows(IllegalArgumentException.class,
+                () -> handlers.processReservation(badPayload));
+        verifyNoInteractions(notificationService);
+        verifyNoInteractions(analyticsService);
+        verify(processedRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void nonNumericUserIdFailsTheHandler() {
+        UUID eventId = UUID.randomUUID();
+        when(processedRepository.findByEventIdAndConsumerGroup(eventId,
+                EventHandlers.GROUP)).thenReturn(Optional.empty());
+        JsonNode badPayload = MAPPER.readTree("{\"eventId\":\"" + eventId + "\"," +
+                "\"eventType\":\"ReservationCancelled\"," +
+                "\"payload\":{\"userId\":\"abc\"}}");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> handlers.processReservation(badPayload));
+        verifyNoInteractions(notificationService);
+    }
+
+    @Test
+    void zeroOrNegativeUserIdFailsTheHandler() {
+        UUID eventId = UUID.randomUUID();
+        when(processedRepository.findByEventIdAndConsumerGroup(eventId,
+                EventHandlers.GROUP)).thenReturn(Optional.empty());
+        JsonNode badPayload = MAPPER.readTree("{\"eventId\":\"" + eventId + "\"," +
+                "\"eventType\":\"ReservationExpired\"," +
+                "\"payload\":{\"userId\":0}}");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> handlers.processReservation(badPayload));
+        verifyNoInteractions(notificationService);
+    }
+
+    @Test
+    void analyticsOnlyEventsTolerateMinimalPayloads() {
+        // ReservationCreated carries no notification projection; a thin
+        // payload is legal there and must pass.
+        UUID eventId = UUID.randomUUID();
+        when(processedRepository.findByEventIdAndConsumerGroup(eventId,
+                EventHandlers.GROUP)).thenReturn(Optional.empty());
+        JsonNode thin = MAPPER.readTree("{\"eventId\":\"" + eventId + "\"," +
+                "\"eventType\":\"ReservationCreated\"," +
+                "\"payload\":{\"reservationId\":\"x\"}}");
+
+        assertDoesNotThrow(() -> handlers.processReservation(thin));
+        verify(analyticsService).recordReservationEvent(eq("ReservationCreated"), anyString());
+    }
 }

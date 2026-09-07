@@ -129,6 +129,20 @@ public class ReservationService {
     @Transactional
     public Reservation create(Long userId, com.flashreserve.catalog.Event event,
                                String section, int quantity) {
+        // Event-state gate: only SCHEDULED/ON_SALE events are reservable.
+        // The DB CHECK constraint defines the vocabulary; the engine now
+        // enforces it (previously CANCELLED/SOLD_OUT/CONCLUDED events
+        // remained bookable — found in the honest-limitations audit).
+        String state = event.getState();
+        if (!"SCHEDULED".equals(state) && !"ON_SALE".equals(state)) {
+            throw new DomainException(DomainException.ErrorCode.EVENT_NOT_RESERVABLE,
+                    "Event is not open for reservations (state=" + state + ")");
+        }
+        // Sales-window gate: on_sale_at in the future means no holds yet.
+        if (event.getOnSaleAt() != null && event.getOnSaleAt().isAfter(Instant.now())) {
+            throw new DomainException(DomainException.ErrorCode.EVENT_NOT_RESERVABLE,
+                    "Sales for this event have not opened yet");
+        }
         InventoryPool pool = poolRepository
                 .findByEventIdAndSection(event.getId(), section)
                 .orElseThrow(() -> new NotFoundException(

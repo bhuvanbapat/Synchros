@@ -20,12 +20,35 @@ import { HoldCountdown } from './HoldCountdown';
 
 type View = 'shop' | 'admin';
 
+const AUTH_STORAGE_KEY = 'flashreserve.auth';
+
+/** sessionStorage (not localStorage): the token dies with the tab. */
+function loadStoredAuth(): Auth | null {
+  try {
+    const raw = sessionStorage.getItem(AUTH_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as Auth) : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function App() {
-  const [auth, setAuth] = useState<Auth | null>(null);
+  const [auth, setAuthState] = useState<Auth | null>(loadStoredAuth());
   const [view, setView] = useState<View>('shop');
+
+  function setAuth(a: Auth | null) {
+    setAuthState(a);
+    if (a) sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(a));
+    else sessionStorage.removeItem(AUTH_STORAGE_KEY);
+  }
 
   if (!auth) {
     return <Login onLogin={(a) => setAuth(a)} />;
+  }
+
+  function signOut() {
+    setAuth(null);
+    setView('shop');
   }
 
   return (
@@ -44,6 +67,9 @@ export default function App() {
             hidden={!auth.email.startsWith('admin@')}
           >
             Admin
+          </button>
+          <button onClick={signOut} className="secondary">
+            Sign out
           </button>
         </nav>
       </header>

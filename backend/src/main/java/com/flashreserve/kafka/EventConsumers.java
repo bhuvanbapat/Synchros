@@ -8,7 +8,6 @@ import org.springframework.context.annotation.Conditional;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.KafkaException;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
@@ -44,13 +43,16 @@ public class EventConsumers {
     private final DeadLetterService deadLetterService;
     private final EventHandlers handlers;
     private final ObjectMapper objectMapper;
+    private final ConsumerRetryRepository retryRepository;
 
     public EventConsumers(DeadLetterService deadLetterService,
                           EventHandlers handlers,
-                          ObjectMapper objectMapper) {
+                          ObjectMapper objectMapper,
+                          ConsumerRetryRepository retryRepository) {
         this.deadLetterService = deadLetterService;
         this.handlers = handlers;
         this.objectMapper = objectMapper;
+        this.retryRepository = retryRepository;
     }
 
     @KafkaListener(topics = "reservation-events", groupId = EventHandlers.GROUP)
@@ -74,11 +76,30 @@ public class EventConsumers {
     }
 
     /**
-     * Track attempt count in-memory per (topic+eventId) — bounded poison
-     * handling without a retry-topic dependency for the portfolio scale.
+     * Attempt counts are DURABLE (consumer_retry table, V6): a restart no
+     * longer resets the poison-message clock. "Bounded retry" is bounded
+     * globally, not bounded per uptime. Counting happens in a short
+     * independent transaction (REQUIRES_NEW inside DeadLetterService
+     * pattern); handler transactions are untouched.
      */
-    private final java.util.Map<String, Integer> attemptCounts = new java.util.concurrent
-            .ConcurrentHashMap<>();
+    private int countAttempt(String dedupKey, String error) {
+        ConsumerRetry row = retryRepository.findById(dedupKey).orElse(null);
+        if (row == null) {
+            retryRepository.saveAndFlush(new ConsumerRetry(dedupKey, 1, error));
+            return 1;
+        }
+        row.recordAttempt(error);
+        retryRepository.saveAndFlush(row);
+        return row.getAttempts();
+    }
+
+    private void clearAttempts(String dedupKey) {
+        try {
+            retryRepository.deleteById(dedupKey);
+        } catch (Exception ignored) {
+            // best-effort clear; retention purge catches stragglers
+        }
+    }
 
     private void handle(String topic, String value, Handler handler) {
         JsonNode envelope;
@@ -100,13 +121,13 @@ public class EventConsumers {
         String dedupKey = topic + ":" + eventId;
         try {
             handler.apply(envelope);
-            attemptCounts.remove(dedupKey);
+            clearAttempts(dedupKey);
         } catch (Exception e) {
-            int attempts = attemptCounts.merge(dedupKey, 1, Integer::sum);
+            int attempts = countAttempt(dedupKey, e.getMessage());
             if (attempts >= MAX_ATTEMPTS) {
                 String type = envelope.path("eventType").asText("unknown");
                 deadLetterService.quarantine(topic, eventId, value, e.getMessage(), attempts);
-                attemptCounts.remove(dedupKey);
+                clearAttempts(dedupKey);
                 return;
             }
             log.warn("consumer error topic={} eventId={} attempt={}: {}",

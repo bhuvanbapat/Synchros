@@ -14,13 +14,17 @@ export const PASSWORD = __ENV.USER_PASSWORD || 'password';
 
 /**
  * Logs in via /api/auth/login and returns { Authorization: 'Bearer ...' }.
- * Tokens are cached per VU (k6 JS state is VU-isolated): one login, many
- * authenticated calls — exactly like the browser client.
+ * Tokens are cached per VU (k6 JS state is VU-isolated) with the expiry
+ * the server reports — a cached token is re-logged-in once it is within
+ * 60s of expiring, so long benchmarks (JWT TTL default 1h) never fire on
+ * a stale token mid-run.
  */
 const tokenCache = {};
 
 export function loginHeaders(email) {
-  if (tokenCache[email]) return tokenCache[email];
+  const cached = tokenCache[email];
+  if (cached && Date.now() < cached.expiresAt) return cached.headers;
+
   const res = http.post(
     `${BASE}/api/auth/login`,
     JSON.stringify({ email, password: PASSWORD }),
@@ -30,8 +34,14 @@ export function loginHeaders(email) {
     throw new Error(`login failed for ${email}: HTTP ${res.status}`);
   }
   const body = res.json();
-  tokenCache[email] = { Authorization: `Bearer ${body.accessToken}` };
-  return tokenCache[email];
+  const headers = { Authorization: `Bearer ${body.accessToken}` };
+  tokenCache[email] = {
+    headers,
+    // expiresIn is seconds; refresh 60s early so no in-flight call
+    // crosses the expiry boundary.
+    expiresAt: Date.now() + (body.expiresIn - 60) * 1000,
+  };
+  return headers;
 }
 
 // Kept for backward compatibility with scripts that pre-provision users

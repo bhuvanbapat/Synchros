@@ -15,13 +15,16 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
+    private final com.flashreserve.security.LoginAttemptLimiter loginLimiter;
 
     public UserService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
-                       AuthenticationManager authenticationManager) {
+                       AuthenticationManager authenticationManager,
+                       com.flashreserve.security.LoginAttemptLimiter loginLimiter) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
+        this.loginLimiter = loginLimiter;
     }
 
     @Transactional
@@ -44,15 +47,26 @@ public class UserService {
         }
     }
 
-    /** Validates credentials; returns the persisted user. */
-    public User login(AuthDtos.LoginRequest request) {
+    /**
+     * Validates credentials through the AuthenticationManager and returns
+     * the persisted user. Brute-force lockout runs first: 5 failures per
+     * (email, ip) inside 15 minutes refuses further attempts with 429
+     * (fail-open when the counter store is unavailable).
+     */
+    public User login(AuthDtos.LoginRequest request, String remoteAddr) {
+        if (!loginLimiter.isAllowed(request.email(), remoteAddr)) {
+            throw new DomainException(DomainException.ErrorCode.RATE_LIMIT_EXCEEDED,
+                    "Too many failed sign-in attempts; try again later");
+        }
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.email(), request.password()));
         } catch (BadCredentialsException e) {
+            loginLimiter.recordFailure(request.email(), remoteAddr);
             throw new DomainException(DomainException.ErrorCode.UNAUTHORIZED,
                     "Invalid email or password");
         }
+        loginLimiter.recordSuccess(request.email(), remoteAddr);
         return userRepository.findByEmail(request.email()).orElseThrow();
     }
 }

@@ -27,7 +27,7 @@ Demo accounts (password `password`): `alice@example.com`,
 
 ## 1. Automated tests (the fastest full verification)
 
-### 1a. Backend — 55 tests incl. real-Postgres concurrency ITs
+### 1a. Backend — 87 tests incl. real-Postgres, real-Kafka, real-Redis ITs
 
 ```powershell
 cd backend
@@ -35,9 +35,9 @@ $env:JAVA_HOME='C:\Program Files\Java\jdk-25'   # adjust if needed
 .\mvnw.cmd test
 ```
 
-Expected: `Tests run: 45, Failures: 0, Errors: 0, Skipped: 0` + `BUILD SUCCESS`.
-Testcontainers pulls its own throwaway Postgres — the compose DB is not
-touched. Runtime ≈ 2–3 min (first run downloads images).
+Expected: `Tests run: 87, Failures: 0, Errors: 0, Skipped: 0` + `BUILD SUCCESS`.
+Testcontainers pulls its own throwaway Postgres/Kafka/Redis — the compose
+DB is not touched. Runtime ≈ 2–3 min (first run downloads images).
 
 What you are actually verifying, by test class:
 
@@ -51,22 +51,27 @@ What you are actually verifying, by test class:
 | ExpirationIT | expiry releases units; confirm-vs-expire → one winner; confirm after expiry fails cleanly |
 | ApiIdempotencyIT / IdempotencyIT | replay/conflict/in-flight semantics (service + real HTTP) |
 | ApiSecurityIT | JWT 401/403 gates, tampered + expired tokens, IDOR blocked, injection fails safely, validation 400s |
-| AuthHardeningIT | JWT round-trip/tamper/expiry/wrong-secret; HMAC round-trip/tamper; unsigned + tampered webhooks rejected 401 over real HTTP |
-| OutboxIT | outbox row commits with the mutation, rolls back with it |
+| AuthHardeningIT | JWT round-trip/tamper/expiry/wrong-secret; versioned-HMAC round-trip/tamper/**stale-replay 401**/legacy-format refusal; unsigned + tampered webhooks 401 over real HTTP; form-encoded transport → 400; fail-open login-limiter wiring |
+| **AccountSuspensionIT** | suspend → live token 401s on the next request → reactivate → SAME token 200; non-admin 403; self-lockout 400; garbage state 400; unknown user 404 |
+| **EventStateGateIT** | CANCELLED/SOLD_OUT/CONCLUDED/pre-sales-window → EVENT_NOT_RESERVABLE; happy path not regressed |
+| **KafkaLoopIT** (real KRaft broker, Testcontainers) | outbox row → publisher → broker → consumer → notification projection; duplicate delivery → exactly 1 processed marker; poison message → dead_letter + durable counter cleared |
+| **RedisRateLimitCacheIT** (real Redis) | token-bucket burst boundary; 16-way concurrent acquire → exactly burst=3 winners (Lua atomicity); cache-aside TTL ~3s; login-lockout count/scope/clear |
+| **SecretPolicyTest** | ≥32 chars always; repo placeholder secrets refused under prod-like profiles; opt-out only drops the placeholder check |
+| OutboxIT | outbox row commits with the mutation, rolls back with it; claim is SKIP LOCKED + lease-aware (starvation regression) |
 | ReconciliationIT | detects intentionally corrupted counters + stuck holds |
-| EventHandlersTest / DeadLetterServiceTest | consumer dedup; poison quarantine |
+| EventHandlersTest / DeadLetterServiceTest / ConsumerRetryTest | consumer dedup; strict payload contract (missing/non-numeric/zero userId → fail, thin payloads still pass); poison quarantine; durable counter increment semantics |
 | ReservationStateMachineTest / FingerprintTest | transition guards; request hashing |
 
-Single-class run: `.\mvnw.cmd test "-Dtest=OversellPreventionIT"`
+Single-class run: `.\mvnw.cmd test "-Dtest=KafkaLoopIT"`
 
-### 1b. Frontend — 5 component tests + build + lint
+### 1b. Frontend — 6 component tests + build + lint
 
 ```powershell
 cd frontend
 npm install            # once
-npm test -- --run --pool=threads     # 5/5 (use --pool=threads: vitest worker timeout on some machines)
-npm run build                        # production bundle
-npx oxlint src                       # lint, exit 0
+npm test               # 6/6 (session persistence + sign-out included)
+npm run build          # production bundle (includes type-check)
+npx oxlint src         # lint, exit 0
 ```
 
 ### 1c. CI parity (what GitHub Actions will run)
@@ -313,25 +318,28 @@ Automated: `npm test -- --run --pool=threads` (5 tests cover items 2–5).
 
 ```powershell
 # 1. automated backend + frontend
-cd backend  && .\mvnw.cmd --batch-mode clean test          # 55/55
+cd backend  && .\mvnw.cmd --batch-mode clean test          # 87/87
 cd frontend && npm ci && npx oxlint src &&
-               npm test -- --run --pool=threads && npm run build
+               npm test && npm run build
 
 # 2. fresh stack
 docker compose up -d --build app
 Invoke-RestMethod http://localhost:8081/actuator/health   # UP
 
-# 3. journey + drills (§2, §5)
+# 3. journey + drills (§2, §5) + tools/smoke.ps1 (15-step live drill:
+#    flow, HMAC + stale-replay 401, login lockout 429, suspension
+#    round-trip, transport 400, reconciliation)
 # 4. benchmarks (§4)
 # 5. final word
 Invoke-RestMethod http://localhost:8081/api/admin/reconciliation -Method Post -Headers $adminH
 # -> consistent=True, findings=[]
 ```
 
-**The project passes when:** 45+5 automated tests green · §2 journey
+**The project passes when:** 87+6 automated tests green · §2 journey
 returns HELD/CONFIRMED with idempotent replays · 500-VU benchmark sells
-exactly 100 with 0 errors · both drills (§5.1, §5.2) keep commits flowing
-and reconcile clean at the end.
+exactly 100 with 0 errors · `tools/smoke.ps1` prints all 15 OK lines ·
+both drills (§5.1, §5.2) keep commits flowing and reconcile clean at
+the end.
 
 ---
 

@@ -47,6 +47,10 @@ public class OutboxPublisher {
     private final TransactionTemplate tx;
     private final int maxRetries;
 
+    private static final int BATCH_SIZE = 50;
+    /** Claim lifetime: a crashed publisher's rows return after this. */
+    private static final java.time.Duration LEASE = java.time.Duration.ofSeconds(60);
+
     public OutboxPublisher(OutboxRepository outboxRepository,
                            KafkaTemplate<String, String> kafkaTemplate,
                            FlashReserveTopics topics,
@@ -61,10 +65,18 @@ public class OutboxPublisher {
 
     @Scheduled(fixedDelayString = "${flashreserve.outbox.poll-interval-ms:500}")
     public void publishPending() {
+        // 1) Claim a disjoint batch (short tx): SKIP LOCKED + an explicit
+        //    lease so a second instance cannot re-send rows this instance
+        //    is actively publishing. The lease predicate runs inside the
+        //    claim SQL; a crashed instance's lease simply expires and the
+        //    row returns to the pool. Dirty-checking persists the lease.
         List<OutboxEvent> batch = tx.execute(status ->
-                outboxRepository.findPublishable(
-                        org.springframework.data.domain.Limit.of(50)));
-        if (batch == null) return;
+                outboxRepository.findPublishable(BATCH_SIZE).stream()
+                        .peek(e -> e.leaseUntil(Instant.now().plus(LEASE)))
+                        .toList());
+        if (batch == null || batch.isEmpty()) return;
+
+        // 2) Publish — NO transaction open, all broker I/O outside tx.
         for (OutboxEvent event : batch) {
             publishOne(event);
         }
@@ -86,12 +98,19 @@ public class OutboxPublisher {
         } catch (Exception e) {
             final int attemptsSoFar = event.getRetryCount();
             final boolean dead = attemptsSoFar + 1 >= maxRetries;
+            // One short transaction: state flip + backoff lease together,
+            // so no window exists where a FAILED row sits unleased.
             tx.executeWithoutResult(status ->
                     outboxRepository.findById(event.getId()).ifPresent(row -> {
                         if (dead) {
                             row.markDead();
                         } else {
-                            row.markFailed();   // increments retry_count by 1
+                            row.markFailed();   // increments retry_count
+                            // Exponential backoff lease: 2^retry seconds,
+                            // capped at 60 — a dying broker gets polled
+                            // less, not hammered at a fixed 500ms.
+                            row.leaseUntil(Instant.now().plusSeconds(
+                                    Math.min(60, 1L << Math.min(6, row.getRetryCount()))));
                         }
                     }));
             if (dead) {

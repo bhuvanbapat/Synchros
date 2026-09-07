@@ -73,7 +73,9 @@ class ApiSecurityIT extends PostgresIntegrationBase {
     void expiredTokenIsRejected() {
         // Issue directly with a negative-TTL instance: verification must
         // fail the expiry check and the API must return 401.
-        var expired = new JwtService("test-secret-0123456789-test-secret-0123456789", -120);
+        var expired = new JwtService("test-secret-0123456789-test-secret-0123456789", -120,
+                new com.flashreserve.common.SecretPolicy(
+                        new org.springframework.mock.env.MockEnvironment(), false));
         String token = expired.issue(1L, "alice@example.com", "USER");
         int resp = rest().get().uri("/api/events")
                 .headers(h -> h.setBearerAuth(token))

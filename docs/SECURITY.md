@@ -66,18 +66,25 @@ sequential DB id) was replaced with UUID lookup during the audit.
 Public endpoint by design (PSP callbacks cannot authenticate as users);
 hardened by:
 
-- **HMAC-SHA256 signature enforcement**: every delivery MUST carry
-  `X-Signature` — base64(HMAC-SHA256(raw payload bytes, shared secret)).
-  Verification happens over the **exact raw bytes** (a byte-preserving
-  capture filter wraps the request before JSON parsing, so re-serialization
-  can never break a signature) using a constant-time comparison. Unsigned
-  or tampered deliveries → 401 `WEBHOOK_SIGNATURE_INVALID` **before any
-  parsing or state change**. The secret (`PAYMENT_WEBHOOK_SECRET`) is
-  env-injected, must be ≥ 32 chars (startup fails otherwise), and is never
-  logged.
+- **Versioned HMAC-SHA256 signature enforcement (Stripe-style)**: every
+  delivery MUST carry `X-Signature: t=<unix-seconds>,v1=base64(HMAC-SHA256(
+  secret, "<t>." + raw payload bytes))`. Verification recomputes over the
+  presented timestamp + **exact raw bytes** (a byte-preserving capture
+  filter wraps the request before JSON parsing, so re-serialization can
+  never break a signature) using a constant-time comparison, and rejects
+  deliveries whose timestamp is outside the replay tolerance
+  (`PAYMENT_WEBHOOK_REPLAY_TOLERANCE_SECONDS`, default 300s) — a captured
+  valid delivery replayed raw an hour later is 401'd, and the timestamp
+  cannot be refreshed without the secret because it is signed material.
+  Unsigned, tampered, stale, or legacy bare-base64 deliveries → 401
+  `WEBHOOK_SIGNATURE_INVALID` **before any parsing or state change**.
+  The secret (`PAYMENT_WEBHOOK_SECRET`) is env-injected, must be ≥ 32
+  chars, is placeholder-checked by the fail-closed `SecretPolicy` under
+  prod-like profiles, and is never logged.
   - The mock gateway's relay signs every simulated delivery with the same
-    secret, so the verification path runs on every payment in the system,
-    and a misconfigured secret fails fast in tests, not in production.
+    secret and a fresh timestamp, so the verification path runs on every
+    payment in the system, and a misconfigured secret fails fast in
+    tests, not in production.
 - Strict validation before any state change: non-null UUID orderId,
   providerRef 1–128 chars, outcome ∈ {SUCCESS, FAILURE, TIMEOUT} —
   violations are 400 with no side effects.
@@ -128,21 +135,28 @@ details leak (GlobalExceptionHandler).
 | IDOR (user A reads B's reservation/order) | owner-scoped queries + locks | ApiSecurityIT |
 | Unauthorized admin access | role check in filter chain | ApiSecurityIT |
 | Forged / tampered JWT | HS256 constant-time verify, tamper+expiry+wrong-secret rejected | AuthHardeningIT, ApiSecurityIT |
-| Stolen-token use after account suspension | fresh principal reload per request | (unit-level, loadUserByUsername) |
-| Unsigned / tampered payment callback | HMAC-SHA256 over raw bytes, constant-time compare, 401 pre-parse | AuthHardeningIT (over real HTTP) |
+| Stolen-token use after account suspension | fresh principal reload per request | AccountSuspensionIT (live-token round-trip) |
+| Unsigned / tampered payment callback | versioned HMAC-SHA256 over exact raw bytes, constant-time compare, 401 pre-parse | AuthHardeningIT (over real HTTP) |
+| Replayed captured webhook delivery (raw re-send) | signed timestamp + replay window (default 300s); stale → 401; legacy format refused | AuthHardeningIT (stale-timestamp unit + HTTP), live smoke drill |
 | Malicious payment callback (forged/refunded) | strict validation + idempotent application + HMAC | PaymentFlowIT |
 | Duplicate payment callbacks (double-confirm) | order lock + payment state filter | PaymentFlowIT (8-way concurrent) |
 | Duplicate / replayed reservation requests | idempotency keys + fingerprints | ApiIdempotencyIT, ConcurrentIdempotencyClaimIT |
-| Event spoofing / duplicate delivery | processed_event dedup marker | EventHandlersTest |
+| Event spoofing / duplicate delivery | processed_event dedup marker | EventHandlersTest, KafkaLoopIT (real broker) |
+| Brute-force credential stuffing on /api/auth/login | LoginAttemptLimiter: 5 fails per (email, ip) → 15-min 429 lockout; success clears | RedisRateLimitCacheIT (live Redis), live smoke drill |
+| Reserving a CANCELLED/SOLD_OUT/CONCLUDED or pre-sales event | event-state + sales-window gate → EVENT_NOT_RESERVABLE 409 | EventStateGateIT |
+| Poison/malformed event payload (silent bad projections) | strict payload contract (present/numeric/positive) → retry → dead-letter | EventHandlersTest, KafkaLoopIT |
+| Placeholder/dev secret reaching prod-like boot | SecretPolicy fails closed (≥32 chars always; repo placeholders refused) | SecretPolicyTest |
 | SQL injection | parameterized queries only | ApiSecurityIT |
 | Secret leakage | .env gitignored, structured errors, no traces in responses | review |
 | Rate-limit bypass attempt flood | Redis token bucket per user | flash-sale run (429s observed) |
 | Malformed event payload | immediate dead_letter quarantine | DeadLetterServiceTest |
 | Malformed request that trips the strict HTTP firewall | RequestRejectedException → structured 400 | (verified live, smoke) |
+| Malformed transport (form-encoded to JSON API) | HttpMediaTypeNotSupportedException → structured 400 | AuthHardeningIT (over real HTTP) |
 | Privilege escalation | role stored in DB with CHECK, set only at registration (USER) | ApiSecurityIT |
-| Unauthorized admin actions | `/api/admin/**` ROLE_ADMIN | ApiSecurityIT |
+| Unauthorized admin actions | `/api/admin/**` ROLE_ADMIN | ApiSecurityIT, AccountSuspensionIT (non-admin 403) |
+| Admin self-lockout | setState refuses operating on your own account | AccountSuspensionIT |
 | Enumeration of ids | public UUID identifiers | (design) |
-| Suspended account usage | DisabledException at auth + per-request reload | (unit-level, loadUserByUsername) |
+| Suspended account usage | DisabledException at auth + per-request reload | AccountSuspensionIT (suspend → 401 → reactivate → 200) |
 
 ## Known limitations (documented, deliberate)
 
@@ -153,8 +167,13 @@ details leak (GlobalExceptionHandler).
   (1h default) and suspension is enforced per-request via the fresh
   principal reload — a revocation table would be the next addition.
 - Webhook HMAC assumes a single PSP relationship (one shared secret);
-  multi-PSP setups would key the secret per provider.
-- No account lockout after repeated bad logins (rate limiting is on the
-  reservation path; an auth-attempt limiter would be the next addition).
+  multi-PSP setups would key the secret per provider. The replay window
+  bounds raw replays but two colluding holders of the secret can always
+  mint fresh signatures; there is no rotation story.
+- Login lockout is (email, ip)-scoped and trusts `X-Forwarded-For` —
+  correct behind the compose proxy, but on the public internet the LB
+  must sanitize the header or an attacker mints a fresh IP-scoped counter
+  per request. Email-only lockout (no IP scope) would let an attacker
+  lock out a victim's account — the chosen trade favors availability.
 - TLS is external to the app (terminate at LB/ingress) — tokens must not
   cross untrusted hops in clear.

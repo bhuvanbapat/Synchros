@@ -54,14 +54,25 @@ management:
     tags:
       application: flashreserve
   tracing:
-    # Opt-in distributed tracing: set OTEL_EXPORTER_OTLP_ENDPOINT to enable.
-    # When absent, no exporter is configured and tracing stays dormant.
-    enabled: ${OTEL_TRACING_ENABLED:false}
+    # Sampling for the opt-in tracing pipeline (active only when an OTLP
+    # endpoint is configured below — no endpoint, no exporter, no overhead).
     sampling:
       probability: ${OTEL_SAMPLING_PROBABILITY:1.0}
   otlp:
     tracing:
+      # The switch itself: empty (default) = tracing dormant; set
+      # OTEL_EXPORTER_OTLP_ENDPOINT (e.g. http://collector:4317) to export.
+      # HTTP transport (default) POSTs protobuf to <endpoint>/v1/traces -
+      # the collector receives on its OTLP HTTP port.
       endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:}
+      transport: http
+    metrics:
+      # Disabled by default: the OTLP metrics registry otherwise pushes to
+      # localhost:4318 every 60s even with no collector configured. The
+      # Prometheus scrape endpoint remains the always-on metrics surface;
+      # set OTEL_METRICS_EXPORT_ENABLED=true (plus url) for push metrics.
+      export:
+        enabled: ${OTEL_METRICS_EXPORT_ENABLED:false}
 
 logging:
   level:
@@ -89,6 +100,16 @@ flashreserve:
     failure-weight: ${PAYMENT_FAILURE_WEIGHT:0.10}
     timeout-weight: ${PAYMENT_TIMEOUT_WEIGHT:0.05}
     webhook-secret: ${PAYMENT_WEBHOOK_SECRET:dev-only-webhook-secret-change-me-0123456789}
+    webhook-replay-tolerance-seconds: ${PAYMENT_WEBHOOK_REPLAY_TOLERANCE_SECONDS:300}
   jwt:
     secret: ${JWT_SECRET:dev-only-jwt-secret-change-me-0123456789abcdef}
     ttl-seconds: ${JWT_TTL_SECONDS:3600}
+  secret-policy:
+    # false only for machines that deliberately run the demo with the
+    # documented placeholder secrets; prod-like profiles fail closed.
+    enforce-non-dev: ${SECRET_POLICY_ENFORCE_NON_DEV:true}
+  span-probe:
+    # Opt-in dev drill endpoint (POST /api/dev/span-probe, JWT-protected):
+    # emits one SDK span to verify collector wiring independently of HTTP
+    # observation. Never enable in production.
+    enabled: ${SPAN_PROBE_ENABLED:false}

@@ -1,5 +1,12 @@
 # FlashReserve — High-Concurrency Reservation & Inventory Platform
 
+> **Agents / new sessions:** read [`docs/SESSION_HANDOFF.md`](docs/SESSION_HANDOFF.md)
+> FIRST. It is the complete registry of solved bugs, environment traps,
+> and verification commands. Do not re-diagnose anything documented there,
+> and do not modify code unless you can name the exact mechanism you are
+> changing. The current pass state (87/87 backend, 6/6 frontend, 15/15
+> smoke, live-verified tracing) is recorded in it.
+
 ## What this is
 
 FlashReserve is a backend-heavy engineering project that solves the classic
@@ -114,8 +121,8 @@ relative imports — copy `load-tests/*.js` to a plain path (e.g.
 ## Testing
 
 ```bash
-cd backend  && mvnw.cmd test    # 55 tests; Testcontainers needs Docker
-cd frontend && npm test -- --run --pool=threads
+cd backend  && mvnw.cmd test    # 87 tests; Testcontainers needs Docker
+cd frontend && npm test
 ```
 
 ## Documentation

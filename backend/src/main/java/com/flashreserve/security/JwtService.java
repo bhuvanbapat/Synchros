@@ -35,11 +35,9 @@ public class JwtService {
     private final long ttlSeconds;
 
     public JwtService(@Value("${flashreserve.jwt.secret:}") String secret,
-                      @Value("${flashreserve.jwt.ttl-seconds:3600}") long ttlSeconds) {
-        if (secret == null || secret.length() < 32) {
-            throw new IllegalStateException(
-                    "flashreserve.jwt.secret must be set (>= 32 chars) — configure JWT_SECRET");
-        }
+                      @Value("${flashreserve.jwt.ttl-seconds:3600}") long ttlSeconds,
+                      com.flashreserve.common.SecretPolicy secretPolicy) {
+        secretPolicy.check("flashreserve.jwt.secret (JWT_SECRET)", secret);
         this.secret = secret.getBytes(StandardCharsets.UTF_8);
         this.ttlSeconds = ttlSeconds;
     }

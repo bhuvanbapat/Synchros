@@ -49,12 +49,10 @@ public class PaymentWebhookController {
                                              value = SIGNATURE_HEADER, required = false) String signature,
                                      jakarta.servlet.http.HttpServletRequest httpRequest) {
         // Signature check happens on the RAW bytes — before any business
-        // logic runs. A tampered payload fails here, never downstream.
+        // logic runs. A tampered payload or a stale/replayed delivery
+        // fails here, never downstream.
         byte[] rawBody = (byte[]) httpRequest.getAttribute("rawRequestBody");
-        if (rawBody == null || !signer.verify(rawBody, signature)) {
-            throw new DomainException(DomainException.ErrorCode.WEBHOOK_SIGNATURE_INVALID,
-                    "Webhook signature verification failed");
-        }
+        signer.verify(rawBody, signature);
 
         MockPaymentGateway.Outcome outcome;
         try {

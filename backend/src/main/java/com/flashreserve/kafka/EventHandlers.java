@@ -42,10 +42,13 @@ public class EventHandlers {
         String type = envelope.path("eventType").asText();
         JsonNode p = envelope.path("payload");
 
-        // Notification projection (eventually consistent)
+        // Notification projection (eventually consistent). Payload contract:
+        // userId must be a present positive number — a malformed payload
+        // must NOT silently project a userId=0 notification row (the old
+        // asLong() default); it fails the handler, retries, and dead-letters.
         if ("ReservationConfirmed".equals(type) || "ReservationExpired".equals(type)
                 || "ReservationCancelled".equals(type)) {
-            Long userId = p.path("userId").asLong();
+            Long userId = requiredPositiveLong(p, "userId", eventId);
             String body = switch (type) {
                 case "ReservationConfirmed" -> "Your reservation is confirmed!";
                 case "ReservationExpired" -> "Your reservation hold expired and inventory was released.";
@@ -79,6 +82,21 @@ public class EventHandlers {
         return processedRepository
                 .findByEventIdAndConsumerGroup(eventId, GROUP)
                 .isPresent();
+    }
+
+    /**
+     * Strict payload contract check: the field must exist, be numeric,
+     * and be > 0. Returns the value; throws otherwise so the consumer
+     * retry/dead-letter machinery handles bad payloads like any other
+     * poison message instead of silently projecting defaults.
+     */
+    private static Long requiredPositiveLong(JsonNode payload, String field, UUID eventId) {
+        JsonNode node = payload.path(field);
+        if (!node.isNumber() || node.asLong() <= 0) {
+            throw new IllegalArgumentException("payload field '" + field
+                    + "' missing or invalid for event " + eventId);
+        }
+        return node.asLong();
     }
 
     private void markProcessed(UUID eventId) {

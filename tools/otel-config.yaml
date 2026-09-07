@@ -1,16 +1,20 @@
-# Minimal OTLP receiver + console exporter for the demo stack.
-# Production swaps `logging` for jaeger/tempo/zipkin exporters.
+# OTel Collector config (v0.160+): debug exporter writes every span to
+# stdout so the verification drill can grep for request spans. Production
+# swaps `debug` for otlp-to-Jaeger/Tempo/zipkin endpoints.
 receivers:
   otlp:
     protocols:
       grpc:
         endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
 
 processors:
   batch:
+    timeout: 1s
 
 exporters:
-  logging:
+  debug:
     verbosity: detailed
 
 service:
@@ -18,4 +22,4 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [logging]
+      exporters: [debug]

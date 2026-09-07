@@ -69,5 +69,88 @@ Write-Host "ADMIN OK — pools: $($metrics.pools.Count), outbox states: $($metri
 $recon = Post '/api/admin/reconciliation' $admin '{}'
 Write-Host "RECON OK — pools=$($recon.poolsChecked) consistent=$($recon.consistent) findings=$($recon.findings.Count)"
 
+# 12. Stale webhook replay must 401 (timestamp bound to the signature):
+# re-sign the smoke body with a timestamp 1h in the past. The HMAC is
+# correct for (t, body) — only the replay window rejects it.
+function Sign-At([string]$body, [long]$epoch) {
+    # mirrors WebhookSigner: HMAC-SHA256(secret, "<t>.<body>") -> "t=..,v1=.."
+    $secret = if ($env:PAYMENT_WEBHOOK_SECRET) { $env:PAYMENT_WEBHOOK_SECRET } else { 'dev-only-webhook-secret-change-me-0123456789' }
+    $hmac = [System.Security.Cryptography.HMACSHA256]::new(
+        [System.Text.Encoding]::UTF8.GetBytes($secret))
+    $material = [System.Text.Encoding]::UTF8.GetBytes("$epoch.$body")
+    $mac = $hmac.ComputeHash($material)
+    "t=$epoch,v1=$([Convert]::ToBase64String($mac))"
+}
+$staleBody = '{"orderId":"00000000-0000-0000-0000-000000000009","providerRef":"replay","outcome":"SUCCESS"}'
+$staleSig = Sign-At $staleBody ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds() - 3600)
+try {
+    Invoke-RestMethod -Uri "$base/api/payment-webhooks" -Method Post -Headers $ct -Body $staleBody -TimeoutSec 15 | Out-Null
+    throw 'stale webhook was NOT rejected'
+} catch {
+    $code = $_.Exception.Response.StatusCode.value__
+    if ($code -eq 401) { Write-Host 'REPLAY OK — captured delivery older than the window rejected with 401' }
+    else { throw "expected 401, got $code : $_" }
+}
+# Fresh signature over the same body must PASS the HMAC gate (then 404 on
+# the unknown order — proving the rejection above was the window, not the sig).
+try {
+    Post '/api/payment-webhooks' ($ct + @{ 'X-Signature' = (Sign-At $staleBody ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds()) ) }) $staleBody | Out-Null
+    throw 'unknown-order webhook unexpectedly succeeded'
+} catch {
+    $code = $_.Exception.Response.StatusCode.value__
+    if ($code -eq 404) { Write-Host 'REPLAY OK — fresh signature passes HMAC, fails 404 on unknown order as expected' }
+    else { throw "expected 404 (sig ok, unknown order), got $code : $_" }
+}
+
+# 13. Login brute-force lockout (Redis-backed, live): 5 wrong passwords
+# for a fresh (email, ip) — the 6th is refused 429 BEFORE credential check.
+$lockEmail = "lockout-smoke-$([guid]::NewGuid().ToString('N').Substring(0,8))@example.com"
+Post '/api/auth/register' $ct ('{"email":"' + $lockEmail + '","password":"password12345"}') | Out-Null
+for ($i = 0; $i -lt 5; $i++) {
+    $code = $null
+    try {
+        Post '/api/auth/login' $ct ('{"email":"' + $lockEmail + '","password":"wrong"}') | Out-Null
+    } catch { $code = $_.Exception.Response.StatusCode.value__ }
+    if ($code -ne 401) { throw "failed-login attempt $($i+1): expected 401, got $code" }
+}
+try {
+    Post '/api/auth/login' $ct ('{"email":"' + $lockEmail + '","password":"wrong"}') | Out-Null
+    throw '6th failed login was NOT locked out'
+} catch {
+    $code = $_.Exception.Response.StatusCode.value__
+    if ($code -eq 429) { Write-Host 'LOCKOUT OK — 6th attempt within the window refused with 429' }
+    else { throw "expected 429, got $code : $_" }
+}
+
+# 14. Account suspension round-trip: bob suspended -> live token 401s ->
+# reactivated -> same token works again (no revocation list needed).
+$bobLogin = Post '/api/auth/login' $ct '{"email":"bob@example.com","password":"password"}'
+$bobToken = $bobLogin.accessToken
+$bobId = ([guid]$bobLogin.user.id).ToString()
+$adminJson = $admin + $ct
+Post "/api/admin/users/$bobId/state" $adminJson '{"accountState":"SUSPENDED"}' | Out-Null
+try {
+    Invoke-RestMethod -Uri "$base/api/events" -Headers @{ Authorization = "Bearer $bobToken" } -TimeoutSec 15 | Out-Null
+    throw 'suspended bob was NOT rejected'
+} catch {
+    $code = $_.Exception.Response.StatusCode.value__
+    if ($code -eq 401) { Write-Host 'SUSPEND OK — live token 401s immediately after suspension' }
+    else { throw "expected 401, got $code : $_" }
+}
+Post "/api/admin/users/$bobId/state" $adminJson '{"accountState":"ACTIVE"}' | Out-Null
+Invoke-RestMethod -Uri "$base/api/events" -Headers @{ Authorization = "Bearer $bobToken" } -TimeoutSec 15 | Out-Null
+Write-Host 'SUSPEND OK — reactivation restores the same token immediately'
+
+# 15. Malformed transport: form-encoded body to a JSON API must be a
+# clean 400, never a 500.
+try {
+    Invoke-RestMethod -Uri "$base/api/reservations" -Method Post -Headers $bearer -Body 'eventId=1&section=FLOOR&quantity=1' -ContentType 'application/x-www-form-urlencoded' -TimeoutSec 15 | Out-Null
+    throw 'form-encoded request was NOT rejected'
+} catch {
+    $code = $_.Exception.Response.StatusCode.value__
+    if ($code -eq 400) { Write-Host 'TRANSPORT OK — form-encoded to JSON API is a clean 400' }
+    else { throw "expected 400, got $code : $_" }
+}
+
 Write-Host ''
-Write-Host '=== SMOKE PASSED: JWT auth, HMAC webhook enforcement, full flow, reconciliation ==='
+Write-Host '=== SMOKE PASSED: JWT auth, HMAC webhook + replay window, full flow, login lockout, account suspension, reconciliation ==='

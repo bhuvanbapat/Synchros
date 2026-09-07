@@ -1,7 +1,9 @@
 # Database Design
 
-PostgreSQL 17. Flyway migrations V1–V5, `ddl-auto: validate` (Hibernate
-never creates or drops schema in normal operation).
+PostgreSQL 17. Flyway migrations V1–V7, `ddl-auto: validate` (Hibernate
+never creates or drops schema in normal operation). V6 adds the durable
+consumer retry counters (`consumer_retry`); V7 adds the outbox publish
+lease (`outbox_event.leased_until` + partial index on publishable rows).
 
 ## Schema (V1 core, V5 removal)
 

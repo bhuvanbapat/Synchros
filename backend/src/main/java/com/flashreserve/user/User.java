@@ -42,6 +42,7 @@ public class User {
     void setEmail(String email) { this.email = email; }
     void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
     void setRole(String role) { this.role = role; }
+    void setAccountState(String accountState) { this.accountState = accountState; }
 
     @PrePersist
     void onCreate() {

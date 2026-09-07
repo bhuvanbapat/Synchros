@@ -20,7 +20,7 @@ cd frontend && npm install && npm run dev
 ## Before you commit
 
 ```bash
-# backend (all 55 tests; requires Docker for Testcontainers)
+# backend (all 87 tests; requires Docker for Testcontainers)
 cd backend && ./mvnw test
 
 # frontend

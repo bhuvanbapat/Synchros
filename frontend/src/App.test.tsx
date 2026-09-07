@@ -63,6 +63,8 @@ const RESERVATION = {
 };
 
 beforeEach(() => {
+  // App restores auth from sessionStorage — tests must start logged out.
+  sessionStorage.clear();
   vi.clearAllMocks();
   mocked.login.mockResolvedValue(AUTH);
   mocked.listEvents.mockResolvedValue([EVENT]);
@@ -146,5 +148,26 @@ describe('App — reservation flow', () => {
     await userEvent.click(screen.getByRole('button', { name: /Pay \$50/i }));
     await waitFor(() => screen.getByTestId('charge-SUCCESS'));
     expect(screen.getByTestId('charge-SUCCESS')).toHaveTextContent('Payment captured');
+  });
+});
+
+describe('App — auth persistence', () => {
+  it('keeps the session across remounts and sign-out returns to login', async () => {
+    const { unmount } = render(<App />);
+    await userEvent.clear(screen.getByLabelText(/email/i)); await userEvent.type(screen.getByLabelText(/email/i), AUTH.email);
+    await userEvent.clear(screen.getByLabelText(/password/i)); await userEvent.type(screen.getByLabelText(/password/i), AUTH.token);
+    await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
+    await waitFor(() => screen.getByTestId('pool-FLOOR'));
+    unmount();
+
+    // sessionStorage restores the session on a fresh mount — no re-login.
+    render(<App />);
+    await waitFor(() => screen.getByTestId('pool-FLOOR'));
+    expect(sessionStorage.getItem('flashreserve.auth')).toContain('test-jwt-token');
+
+    // Sign out clears storage and shows the login form again.
+    await userEvent.click(screen.getByRole('button', { name: /sign out/i }));
+    expect(sessionStorage.getItem('flashreserve.auth')).toBeNull();
+    expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
   });
 });

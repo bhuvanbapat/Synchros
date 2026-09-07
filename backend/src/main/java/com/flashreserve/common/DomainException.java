@@ -19,6 +19,7 @@ public class DomainException extends RuntimeException {
 
     public enum ErrorCode {
         INVENTORY_UNAVAILABLE(409, "Requested inventory is no longer available"),
+        EVENT_NOT_RESERVABLE(409, "Event is not open for reservations"),
         RESERVATION_EXPIRED(409, "The reservation hold has expired"),
         RESERVATION_ALREADY_CONFIRMED(409, "The reservation is already confirmed"),
         INVALID_STATE_TRANSITION(409, "Illegal state transition requested"),

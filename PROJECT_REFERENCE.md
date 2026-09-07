@@ -114,8 +114,8 @@ confirm = idempotent no-op. Illegal confirm (lost expiry race) = domain
 | spring-boot-starter-data-redis | availability-hint cache + rate-limit bucket store |
 | spring-boot-starter-kafka | outbox publisher + listeners |
 | micrometer-registry-prometheus | `/actuator/prometheus` scrape target |
-| micrometer-tracing-bridge-otel + opentelemetry-exporter-otlp | opt-in distributed tracing (OTLP export; dormant unless `OTEL_TRACING_ENABLED=true`) |
-| flyway-core + flyway-database-postgresql + spring-boot-flyway | explicit V1–V5 migrations; `ddl-auto: validate` |
+| micrometer-tracing-bridge-otel + opentelemetry-exporter-otlp | opt-in distributed tracing (OTLP/HTTP export; dormant unless `OTEL_EXPORTER_OTLP_ENDPOINT` is set — the endpoint is the switch) |
+| flyway-core + flyway-database-postgresql + spring-boot-flyway | explicit V1–V7 migrations; `ddl-auto: validate` |
 | postgresql (JDBC) | the database |
 | test: spring-boot-starter-test, spring-security-test | test harness |
 | test: testcontainers (junit-jupiter, postgresql, kafka), spring-boot-testcontainers | real-Postgres ITs |
@@ -179,7 +179,10 @@ frozen; changes only ever as new migrations.
 | `JWT_SECRET` | dev-only-… (≥32 chars) | HS256 signing key — startup fails below 32 |
 | `JWT_TTL_SECONDS` | 3600 | token lifetime |
 | `PAYMENT_WEBHOOK_SECRET` | dev-only-… (≥32 chars) | webhook HMAC shared secret |
-| `OTEL_TRACING_ENABLED` / `OTEL_EXPORTER_OTLP_ENDPOINT` | false / (empty) | OpenTelemetry opt-in |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | (empty) | OpenTelemetry opt-in (empty = dormant, the endpoint is the switch) |
+| `PAYMENT_WEBHOOK_REPLAY_TOLERANCE_SECONDS` | 300 | webhook replay window |
+| `SECRET_POLICY_ENFORCE_NON_DEV` | true | refuse placeholder secrets under prod-like profiles |
+| `SPAN_PROBE_ENABLED` | false | dev-only span-probe endpoint for the tracing drill |
 | `REDIS_HOST/PORT` | localhost:6379 | cache + rate limit |
 | `KAFKA_BOOTSTRAP_SERVERS` | localhost:9092 | broker |
 | `SERVER_PORT` | 8081 | API (8080 avoided: commonly claimed by k8s tooling) |
@@ -267,8 +270,9 @@ Two jobs, free-runner compatible:
 - **frontend** (Node 24, npm cache): `npm ci` → `oxlint src` → `npm test -- --run --pool=threads` → `npm run build`.
 
 Both steps were executed locally from scratch during the final audit and
-re-run after the hardening pass (55/55, package SUCCESS, type-check clean,
-5/5, build green). The unix `mvnw`
+re-run after both hardening passes (87/87 backend incl. real-Kafka and
+real-Redis ITs, package SUCCESS, type-check clean, 6/6 frontend, build
+green; live smoke drill 15/15). The unix `mvnw`
 wrapper is committed with mode 100755 and LF-enforced via `.gitattributes`.
 
 ---

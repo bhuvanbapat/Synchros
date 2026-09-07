@@ -75,20 +75,42 @@ same `eventId` identifies an event from outbox row → Kafka message →
 processed_event marker, so an event's journey is reconstructable from
 tables + logs.
 
-OpenTelemetry is wired but **opt-in** (micrometer-tracing bridge + OTLP
-exporter): set `OTEL_TRACING_ENABLED=true` and
-`OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4317` to export spans.
-When disabled (the default) no exporter is configured and the app runs
-with zero tracing overhead — correlation IDs remain the always-on
-baseline that makes critical paths debuggable without any infra.
+OpenTelemetry is wired but **opt-in** (micrometer-tracing bridge + an
+explicit OTLP/HTTP span exporter): set
+`OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318` — **the endpoint is
+the on/off switch**; when it is empty (the default) no exporter bean is
+created and the app runs with zero tracing overhead. (A separate enable
+flag was deliberately removed: two switches drift out of sync; one
+cannot.) The OTLP *metrics* pusher is disabled by default — without that
+it POSTs to localhost:4318 every 60s even with no collector configured.
+Correlation IDs remain the always-on baseline.
 
-The HA compose stack ships a collector profile:
+The HA compose stack ships a collector profile (v0.160, OTLP gRPC 4317 +
+HTTP 4318, debug exporter writing every span to stdout):
 
 ```
-docker compose -f docker-compose.ha.yml up -d --profile tracing
-# app: OTEL_TRACING_ENABLED=true \
-#      OTEL_EXPORTER_OTLP_ENDPOINT=http://flashreserve-otel-collector:4317
+docker compose -f docker-compose.ha.yml up -d --profile tracing otel-collector
+docker network connect flashreserve_default flashreserve-otel-collector  # bridge to the main stack
+# app .env: OTEL_EXPORTER_OTLP_ENDPOINT=http://flashreserve-otel-collector:4318
 ```
 
-`tools/otel-config.yaml` holds the collector config (console exporter for
-the demo — swap to Jaeger/Tempo/zipkin for real dashboards).
+**Verification drill (run live 2026-09-07):** enable
+`SPAN_PROBE_ENABLED=true` alongside the endpoint, then
+`POST /api/dev/span-probe` with a bearer token. The probe emits one SDK
+span directly — if `flashreserve.span-probe` appears in
+`docker logs flashreserve-otel-collector`, exporter wiring is proven
+independently of HTTP-observation config. The same drill observed HTTP
+`authorize request` and `task outboxPublisher.publishPending` spans,
+proving the whole instrumented pipeline end-to-end. The probe endpoint is
+JWT-protected and dormant unless explicitly enabled — never turn it on in
+production.
+
+## Reconciliation gauges (alertable)
+
+The scheduled sweep (every `flashreserve.reconciliation.interval-ms`,
+default 5 min) exports two gauges to Prometheus:
+`flashreserve_reconciliation_findings` (counter — every finding bumps it)
+and `flashreserve_reconciliation_consistent` (1 = last run clean, 0 =
+findings). A minimal alert rule is then:
+`flashreserve_reconciliation_consistent == 0` for 10m → page. The repo
+intentionally ships no dashboards; the gauges are the contract.

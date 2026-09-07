@@ -54,15 +54,13 @@ public class PaymentWebhookService {
 
     /**
      * Signed delivery path used by the in-process relay: verifies the
-     * HMAC over the exact payload bytes, then applies. This exercises the
-     * same verification the HTTP endpoint performs on every simulated
-     * payment, so a misconfigured secret fails fast in tests, not prod.
+     * HMAC (including the replay window) over the exact payload bytes,
+     * then applies. This exercises the same verification the HTTP
+     * endpoint performs on every simulated payment, so a misconfigured
+     * secret fails fast in tests, not prod.
      */
     public void handleSignedCallback(String json, String signature) {
-        if (!signer.verify(json.getBytes(java.nio.charset.StandardCharsets.UTF_8), signature)) {
-            throw new DomainException(DomainException.ErrorCode.WEBHOOK_SIGNATURE_INVALID,
-                    "Webhook signature verification failed");
-        }
+        signer.verify(json.getBytes(java.nio.charset.StandardCharsets.UTF_8), signature);
         try {
             var node = objectMapper.readTree(json);
             handleCallback(

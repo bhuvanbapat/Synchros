@@ -52,6 +52,10 @@ public class OutboxEvent {
     @Column(name = "published_at")
     private Instant publishedAt;
 
+    /** Publisher claim lease (V7): null = free to claim. */
+    @Column(name = "leased_until")
+    private Instant leasedUntil;
+
     public OutboxEvent() {
     }
 
@@ -78,6 +82,7 @@ public class OutboxEvent {
     public void markPublished() {
         this.state = State.PUBLISHED;
         this.publishedAt = Instant.now();
+        this.leasedUntil = null; // release any claim
     }
 
     public void markFailed() {
@@ -87,6 +92,13 @@ public class OutboxEvent {
 
     public void markDead() {
         this.state = State.DEAD;
+        this.leasedUntil = null;
+    }
+
+    public Instant getLeasedUntil() { return leasedUntil; }
+
+    public void leaseUntil(Instant until) {
+        this.leasedUntil = until;
     }
 
     @PrePersist

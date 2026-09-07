@@ -65,6 +65,14 @@ public class GlobalExceptionHandler {
         return build("INVALID_REQUEST", "Malformed request body or parameter", 400);
     }
 
+    /** Unsupported Content-Type (e.g. form-encoded to a JSON API) is a
+     *  client error — must be a structured 400, never a 500. */
+    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiError> handleMediaTypeNotSupported(
+            org.springframework.web.HttpMediaTypeNotSupportedException ex) {
+        return build("INVALID_REQUEST", "Unsupported Content-Type for this endpoint", 400);
+    }
+
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ApiError> handleNoResource(NoResourceFoundException ex) {
         return build("NOT_FOUND", "No such endpoint", 404);

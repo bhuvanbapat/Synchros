@@ -1,6 +1,5 @@
 package com.flashreserve.outbox;
 
-import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -11,10 +10,22 @@ import java.util.List;
 
 public interface OutboxRepository extends JpaRepository<OutboxEvent, Long> {
 
-    /** Publisher poll: pending or retryable failures, oldest first. */
-    @Query("SELECT o FROM OutboxEvent o WHERE o.state IN ('PENDING','FAILED') " +
-           "ORDER BY o.createdAt ASC")
-    List<OutboxEvent> findPublishable(Limit limit);
+    /**
+     * Publisher claim: pending or retryable failures whose lease is free
+     * (or expired), oldest first, FOR UPDATE SKIP LOCKED inside the
+     * caller's transaction. Two publisher instances each get a DISJOINT
+     * batch — no duplicate sends, no lock convoy. The lease predicate
+     * lives IN SQL (not post-filter in Java): a batch of 50 leased rows
+     * can never starve the poll into returning nothing while work exists.
+     * Native query because JPQL has no SKIP LOCKED.
+     */
+    @Query(value = "SELECT * FROM outbox_event " +
+           "WHERE state IN ('PENDING','FAILED') " +
+           "AND (leased_until IS NULL OR leased_until <= now()) " +
+           "ORDER BY created_at ASC " +
+           "LIMIT :max FOR UPDATE SKIP LOCKED",
+           nativeQuery = true)
+    List<OutboxEvent> findPublishable(@Param("max") int max);
 
     List<OutboxEvent> findByStateOrderByCreatedAtDesc(OutboxEvent.State state);
 

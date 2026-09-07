@@ -77,13 +77,14 @@ services:
       test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/localhost/39092'"]
 
   # Traces pipeline (optional): app exports OTLP spans here, collector
-  # logs them (swap the logging exporter for jaeger/zipkin/tempo in real
-  # deployments). Enable with: --profile tracing
+  # writes them to stdout (swap the debug exporter for Jaeger/Tempo/zipkin
+  # in real deployments). Enable with: --profile tracing
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.116.0
+    image: otel/opentelemetry-collector-contrib:0.160.0
     container_name: flashreserve-otel-collector
     profiles: [tracing]
-    ports: ["4317:4317"]
+    # 4317 gRPC + 4318 HTTP (the app exports over HTTP transport)
+    ports: ["4317:4317", "4318:4318"]
     command: ["--config=/etc/otel-config.yaml"]
     volumes:
       - ./tools/otel-config.yaml:/etc/otel-config.yaml:ro
