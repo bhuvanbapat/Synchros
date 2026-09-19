@@ -49,7 +49,6 @@ Synchros/
 │   ├── otel-config.yaml             collector config (console exporter)
 │   └── smoke.ps1                    live JWT+HMAC+flow smoke (all green)
 ├── .env.example                      every tunable incl. JWT/webhook secrets, safe defaults
-├── BUILD_STATUS.md                   completion checklist
 ├── CHANGELOG.md · CONTRIBUTING.md · LICENSE (MIT) · README.md
 └── .gitignore · .gitattributes       no secrets/binaries; LF-safe scripts
 ```

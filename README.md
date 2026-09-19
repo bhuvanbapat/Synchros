@@ -1,12 +1,5 @@
 # Synchros — High-Concurrency Reservation & Inventory Platform
 
-> **Agents / new sessions:** read [`docs/SESSION_HANDOFF.md`](docs/SESSION_HANDOFF.md)
-> FIRST. It is the complete registry of solved bugs, environment traps,
-> and verification commands. Do not re-diagnose anything documented there,
-> and do not modify code unless you can name the exact mechanism you are
-> changing. The current pass state (87/87 backend, 6/6 frontend, 15/15
-> smoke, live-verified tracing) is recorded in it.
-
 ## What this is
 
 Synchros is a backend-heavy engineering project that solves the classic
@@ -142,7 +135,6 @@ cd frontend && npm test
 - [docs/INTERVIEW_GUIDE.md](docs/INTERVIEW_GUIDE.md) — deep-dive Q&A
 - [docs/LIMITATIONS.md](docs/LIMITATIONS.md) — **brutal, honest limitations** (read this before production claims)
 - [docs/adr/](docs/adr/) — ADR-001 … ADR-012
-- [BUILD_STATUS.md](BUILD_STATUS.md) — completion checklist
 - [CHANGELOG.md](CHANGELOG.md) · [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## CI

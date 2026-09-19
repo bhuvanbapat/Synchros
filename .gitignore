@@ -28,8 +28,6 @@ Thumbs.db
 load-tests/results/
 backend/logs/
 
-# graphify output (dev-time, regenerable)
-graphify-out/
 
 # k6 binary (68MB) — download per README, never commit
 tools/k6.exe

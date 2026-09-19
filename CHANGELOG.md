@@ -234,7 +234,7 @@ project does not use semantic versioning (portfolio project, see git log).
   INTERVIEW_GUIDE + ADR-001…010.
 - GitHub Actions CI: backend build + tests (Testcontainers), frontend
   lint/test/build.
-- BUILD_STATUS.md tracking; LICENSE (MIT).
+- LICENSE (MIT).
 
 ### Verified
 - Backend: **55/55 tests green** (unit + Testcontainers integration).
