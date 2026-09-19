@@ -1,4 +1,4 @@
-# Contributing
+﻿# Contributing
 
 ## Ground rules
 
@@ -48,7 +48,7 @@ Both must be green. CI runs the same commands.
   applied migration (checksums are frozen).
 - Logs: single-line structured events with IDs; never log secrets or raw
   payment payloads.
-- New config: goes through `FlashReserveProperties` with an env override
+- New config: goes through `SynchrosProperties` with an env override
   documented in `.env.example`.
 
 ## Commits

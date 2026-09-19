@@ -1,4 +1,4 @@
-# FlashReserve Architecture
+﻿# Synchros Architecture
 
 ## System overview
 
@@ -19,7 +19,7 @@ boundaries, one PostgreSQL, one Redis, one Kafka broker. Nothing is
                                 │ JWT Bearer + JSON
                                 ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│                     FlashReserve (Spring Boot)                    │
+│                     Synchros (Spring Boot)                    │
 │                                                                  │
 │  api layer          controllers + DTOs + validation + errors     │
 │  ────────────────────────────────────────────────────────────   │

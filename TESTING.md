@@ -1,4 +1,4 @@
-# FlashReserve — How to Test Everything
+﻿# Synchros — How to Test Everything
 
 Complete, executable testing guide — from one-command smoke checks to the
 full concurrency proofs. Every command here was run during the final
@@ -13,7 +13,7 @@ binary is intentionally not committed).
 ## 0. Bring the system up
 
 ```powershell
-cd FlashReserve
+cd Synchros
 docker compose up -d --build app        # postgres + redis + kafka + app
 # wait for health:
 Invoke-RestMethod http://localhost:8081/actuator/health
@@ -21,7 +21,7 @@ Invoke-RestMethod http://localhost:8081/actuator/health
 ```
 
 Demo accounts (password `password`): `alice@example.com`,
-`bob@example.com`, `admin@flashreserve.dev`.
+`bob@example.com`, `admin@Synchros.dev`.
 
 ---
 
@@ -175,7 +175,7 @@ Confirm-after-expiry must 409 (never 500):
 ```powershell
 $adminTok = (Invoke-RestMethod http://localhost:8081/api/auth/login -Method Post `
         -ContentType 'application/json' `
-        -Body '{"email":"admin@flashreserve.dev","password":"password"}').accessToken
+        -Body '{"email":"admin@Synchros.dev","password":"password"}').accessToken
 $adminH = @{ Authorization = "Bearer $adminTok" }
 
 Invoke-RestMethod http://localhost:8081/api/admin/metrics    -Headers $adminH   # pools w/ held+sold, reservation counts, outbox by state
@@ -189,7 +189,7 @@ Invoke-RestMethod http://localhost:8081/api/admin/reconciliation -Method Post -H
 Pool invariant straight from SQL (the ultimate truth, cache excluded):
 
 ```powershell
-docker exec flashreserve-postgres psql -U flashreserve -d flashreserve -c `
+docker exec Synchros-postgres psql -U Synchros -d Synchros -c `
  "SELECT p.section, p.total, p.available,
    COALESCE(SUM(CASE WHEN r.state='HELD' THEN r.quantity END),0) AS held,
    COALESCE(SUM(CASE WHEN r.state='CONFIRMED' THEN r.quantity END),0) AS sold
@@ -206,7 +206,7 @@ docker exec flashreserve-postgres psql -U flashreserve -d flashreserve -c `
 Create a fresh hot pool, fire 500 concurrent clients at 100 units:
 
 ```powershell
-docker exec flashreserve-postgres psql -U flashreserve -d flashreserve -c `
+docker exec Synchros-postgres psql -U Synchros -d Synchros -c `
   "INSERT INTO inventory_pool (event_id, section, total, available)
    SELECT 1,'HOTBENCH',100,100
    WHERE NOT EXISTS (SELECT 1 FROM inventory_pool WHERE section='HOTBENCH');
@@ -224,7 +224,7 @@ k6 run "-e EVENT_ID=$ev" -e SECTION=HOTBENCH -e CLIENTS=500 -e UNITS=100 "$run\f
 **Pass criteria (all must hold):**
 
 ```
-flashreserve_reservation_success .........: 100     <- exactly UNITS, never more
+Synchros_reservation_success .........: 100     <- exactly UNITS, never more
 http_req_failed ..........................: 0.00%   <- no 5xx/timeout (409/429 are expected statuses)
 final pool: available = 0, never negative (SQL check in §3)
 reconciliation: consistent=True
@@ -307,7 +307,7 @@ Manual checklist mirroring the automated tests:
    state CANCELLED, availability restored.
 5. Trigger INVENTORY_UNAVAILABLE (reserve the 10-unit FLOOR 11×) →
    the error code is surfaced.
-6. Log in as `admin@flashreserve.dev` → Admin tab: live pool numbers,
+6. Log in as `admin@Synchros.dev` → Admin tab: live pool numbers,
    reservation/outbox counts, dead letters, Run reconciliation → result line.
 
 Automated: `npm test -- --run --pool=threads` (5 tests cover items 2–5).

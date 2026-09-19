@@ -1,4 +1,4 @@
--- FlashReserve V1: core schema
+﻿-- Synchros V1: core schema
 -- Conventions: timestamptz everywhere, text for enums (validated by CHECK),
 -- generated identity BIGINT PKs with UUID public identifiers where exposed.
 

@@ -1,4 +1,4 @@
-# Demo Walkthrough
+﻿# Demo Walkthrough
 
 Everything below was executed and verified against the running stack.
 
@@ -11,7 +11,7 @@ cd frontend && npm install && npm run dev       # UI on :5173 (proxies /api)
 ```
 
 Demo accounts (password `password`): `alice@example.com`,
-`bob@example.com`, `admin@flashreserve.dev`.
+`bob@example.com`, `admin@Synchros.dev`.
 
 ## 0a. Log in (JWT — every later call is Bearer)
 
@@ -87,7 +87,7 @@ RESERVATION_EXPIRED, never a 500.
 
 ```bash
 # fresh hot pool
-docker exec flashreserve-postgres psql -U flashreserve -d flashreserve -c `
+docker exec Synchros-postgres psql -U Synchros -d Synchros -c `
   "INSERT INTO inventory_pool (event_id, section, total, available) VALUES (1,'HOT100',100,100);"
 k6 run -e EVENT_ID=$ev -e SECTION=HOT100 -e CLIENTS=500 -e UNITS=100 load-tests/flash-sale.js
 ```
@@ -124,7 +124,7 @@ the `ReservationConfirmed` notification produced by the Kafka consumer
 ```powershell
 $adminTok = (Invoke-RestMethod http://localhost:8081/api/auth/login -Method Post `
         -ContentType 'application/json' `
-        -Body '{"email":"admin@flashreserve.dev","password":"password"}').accessToken
+        -Body '{"email":"admin@Synchros.dev","password":"password"}').accessToken
 $adminH = @{ Authorization = "Bearer $adminTok" }
 Invoke-RestMethod http://localhost:8081/api/admin/audit?limit=20 -Headers $adminH
 Invoke-RestMethod http://localhost:8081/api/admin/metrics   -Headers $adminH
@@ -141,12 +141,12 @@ reconciliation button.
 
 ```bash
 docker compose -f docker-compose.ha.yml up -d kafka-1 kafka-2 kafka-3
-docker cp tools/ha-create-topics.sh flashreserve-kafka-1:/tmp/ha.sh
-docker exec flashreserve-kafka-1 bash /tmp/ha.sh        # RF=3, min ISR=2
+docker cp tools/ha-create-topics.sh Synchros-kafka-1:/tmp/ha.sh
+docker exec Synchros-kafka-1 bash /tmp/ha.sh        # RF=3, min ISR=2
 # produce 10 messages, then:
-docker stop flashreserve-kafka-2                        # kills the leader
+docker stop Synchros-kafka-2                        # kills the leader
 # → leadership fails over; ISR 3→2; all 10 messages still consumable
-docker start flashreserve-kafka-2                       # broker rejoins
+docker start Synchros-kafka-2                       # broker rejoins
 docker compose -f docker-compose.ha.yml down -v          # cleanup
 ```
 

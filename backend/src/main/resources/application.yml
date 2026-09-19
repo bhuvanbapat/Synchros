@@ -1,10 +1,10 @@
-spring:
+﻿spring:
   application:
-    name: flashreserve
+    name: Synchros
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/flashreserve}
-    username: ${SPRING_DATASOURCE_USERNAME:flashreserve}
-    password: ${SPRING_DATASOURCE_PASSWORD:flashreserve_local_dev}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/Synchros}
+    username: ${SPRING_DATASOURCE_USERNAME:Synchros}
+    password: ${SPRING_DATASOURCE_PASSWORD:Synchros_local_dev}
     hikari:
       maximum-pool-size: 40
   jpa:
@@ -22,7 +22,7 @@ spring:
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
-      group-id: flashreserve
+      group-id: Synchros
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
@@ -52,7 +52,7 @@ management:
       show-details: when_authorized
   metrics:
     tags:
-      application: flashreserve
+      application: Synchros
   tracing:
     # Sampling for the opt-in tracing pipeline (active only when an OTLP
     # endpoint is configured below — no endpoint, no exporter, no overhead).
@@ -76,15 +76,15 @@ management:
 
 logging:
   level:
-    com.flashreserve: ${LOGGING_LEVEL_COM_FLASHRESERVE:INFO}
+    com.Synchros: ${LOGGING_LEVEL_COM_Synchros:INFO}
   pattern:
     console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%X{requestId:-}] [%thread] %logger{36} - %msg%n"
 
-flashreserve:
+Synchros:
   # Background jobs (expiration scan, outbox drain). Tests exercise these
   # synchronously, so they are disabled in the test profile to avoid racing
   # with assertions (see application-test.yml).
-  scheduling-enabled: ${FLASHRESERVE_SCHEDULING_ENABLED:true}
+  scheduling-enabled: ${Synchros_SCHEDULING_ENABLED:true}
   hold-duration-seconds: ${HOLD_DURATION_SECONDS:120}
   expiration:
     scan-interval-ms: ${EXPIRATION_SCAN_INTERVAL_MS:1000}

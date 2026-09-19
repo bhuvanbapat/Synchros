@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+﻿import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
@@ -163,11 +163,11 @@ describe('App — auth persistence', () => {
     // sessionStorage restores the session on a fresh mount — no re-login.
     render(<App />);
     await waitFor(() => screen.getByTestId('pool-FLOOR'));
-    expect(sessionStorage.getItem('flashreserve.auth')).toContain('test-jwt-token');
+    expect(sessionStorage.getItem('Synchros.auth')).toContain('test-jwt-token');
 
     // Sign out clears storage and shows the login form again.
     await userEvent.click(screen.getByRole('button', { name: /sign out/i }));
-    expect(sessionStorage.getItem('flashreserve.auth')).toBeNull();
+    expect(sessionStorage.getItem('Synchros.auth')).toBeNull();
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
   });
 });

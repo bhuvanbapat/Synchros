@@ -1,4 +1,4 @@
-# ADR-004: Redis usage (cache + rate limit, fail-open, never authoritative)
+﻿# ADR-004: Redis usage (cache + rate limit, fail-open, never authoritative)
 
 **Status:** Accepted
 
@@ -20,8 +20,8 @@ Redis serves two roles, both disposable:
 
 Both paths **fail open** on Redis absence or error: core correctness
 lives in Postgres (ADR-002), so a cache outage must not become an API
-outage. Metrics (`flashreserve_cache{outcome=error}`,
-`flashreserve_rate_limit{outcome}`) surface the degradation.
+outage. Metrics (`Synchros_cache{outcome=error}`,
+`Synchros_rate_limit{outcome}`) surface the degradation.
 
 ## Consequences
 

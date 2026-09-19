@@ -1,4 +1,4 @@
-# FlashReserve — High-Concurrency Reservation & Inventory Platform
+﻿# Synchros — High-Concurrency Reservation & Inventory Platform
 
 > **Agents / new sessions:** read [`docs/SESSION_HANDOFF.md`](docs/SESSION_HANDOFF.md)
 > FIRST. It is the complete registry of solved bugs, environment traps,
@@ -9,7 +9,7 @@
 
 ## What this is
 
-FlashReserve is a backend-heavy engineering project that solves the classic
+Synchros is a backend-heavy engineering project that solves the classic
 **high-demand reservation problem**:
 
 > 500 users compete for 100 units of inventory at the same time.
@@ -72,7 +72,7 @@ cd frontend && npm install && npm run dev   # http://localhost:5173
 ```
 
 Demo accounts (password `password`): `alice@example.com`,
-`bob@example.com`, `admin@flashreserve.dev` (admin).
+`bob@example.com`, `admin@Synchros.dev` (admin).
 
 ## The core demo
 

@@ -1,4 +1,4 @@
-# FlashReserve — HA variant: 3-node KRaft Kafka cluster + optional
+﻿# Synchros — HA variant: 3-node KRaft Kafka cluster + optional
 # OpenTelemetry Collector for distributed tracing.
 #   docker compose -f docker-compose.ha.yml up -d
 # The base docker-compose.yml remains the single-node dev stack; this file
@@ -11,7 +11,7 @@
 #   kafka-1  19092                29092                    29093
 #   kafka-2  29092                29094                    29093
 #   kafka-3  39092                29095                    29093
-name: flashreserve-ha
+name: Synchros-ha
 
 x-kafka-common: &kafka-common
   image: apache/kafka:3.9.0
@@ -19,7 +19,7 @@ x-kafka-common: &kafka-common
 services:
   kafka-1:
     <<: *kafka-common
-    container_name: flashreserve-kafka-1
+    container_name: Synchros-kafka-1
     ports: ["19092:19092"]
     environment: &kafka-env
       KAFKA_NODE_ID: 1
@@ -39,7 +39,7 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      CLUSTER_ID: flashreserve-ha-cluster-0003
+      CLUSTER_ID: Synchros-ha-cluster-0003
     healthcheck: &kafka-health
       # TCP probe on the HOST listener port — instant (no JVM spin-up per
       # probe; the Kafka CLI check takes >8s on this machine and cannot
@@ -52,7 +52,7 @@ services:
 
   kafka-2:
     <<: *kafka-common
-    container_name: flashreserve-kafka-2
+    container_name: Synchros-kafka-2
     ports: ["29092:29092"]
     environment:
       <<: *kafka-env
@@ -65,7 +65,7 @@ services:
 
   kafka-3:
     <<: *kafka-common
-    container_name: flashreserve-kafka-3
+    container_name: Synchros-kafka-3
     ports: ["39092:39092"]
     environment:
       <<: *kafka-env
@@ -81,7 +81,7 @@ services:
   # in real deployments). Enable with: --profile tracing
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.160.0
-    container_name: flashreserve-otel-collector
+    container_name: Synchros-otel-collector
     profiles: [tracing]
     # 4317 gRPC + 4318 HTTP (the app exports over HTTP transport)
     ports: ["4317:4317", "4318:4318"]
@@ -92,7 +92,7 @@ services:
   # Verifies RF=3 after startup: prints topic replication summaries.
   topic-verifier:
     <<: *kafka-common
-    container_name: flashreserve-topic-verifier
+    container_name: Synchros-topic-verifier
     depends_on:
       kafka-1: { condition: service_healthy }
       kafka-2: { condition: service_healthy }
@@ -105,10 +105,10 @@ services:
         /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka-1:29092 2>/dev/null | grep -c '^kafka-[0-9]' || true;
         echo '== topics ==';
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:29092 --list;
-        echo '== describe flashreserve.events ==';
-        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:29092 --describe --topic flashreserve.events || true;
-        echo '== describe flashreserve.notifications ==';
-        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:29092 --describe --topic flashreserve.notifications || true;
-        echo '== describe flashreserve.payments ==';
-        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:29092 --describe --topic flashreserve.payments || true;
+        echo '== describe Synchros.events ==';
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:29092 --describe --topic Synchros.events || true;
+        echo '== describe Synchros.notifications ==';
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:29092 --describe --topic Synchros.notifications || true;
+        echo '== describe Synchros.payments ==';
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:29092 --describe --topic Synchros.payments || true;
         echo 'HA cluster ready: 3 brokers, RF=3, min.insync.replicas=2';

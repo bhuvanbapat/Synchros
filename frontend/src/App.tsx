@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import {
   ApiError,
   adminMetrics,
@@ -20,7 +20,7 @@ import { HoldCountdown } from './HoldCountdown';
 
 type View = 'shop' | 'admin';
 
-const AUTH_STORAGE_KEY = 'flashreserve.auth';
+const AUTH_STORAGE_KEY = 'Synchros.auth';
 
 /** sessionStorage (not localStorage): the token dies with the tab. */
 function loadStoredAuth(): Auth | null {
@@ -54,7 +54,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <strong>⚡ FlashReserve</strong>
+        <strong>⚡ Synchros</strong>
         <span className="spacer" />
         <span className="user">{auth.email}</span>
         <nav>
@@ -100,7 +100,7 @@ function Login({ onLogin }: { onLogin: (a: Auth) => void }) {
 
   return (
     <form className="login" onSubmit={submit}>
-      <h1>⚡ FlashReserve</h1>
+      <h1>⚡ Synchros</h1>
       <p className="subtitle">High-concurrency reservation demo</p>
       <label>
         Email <input value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" />
@@ -116,7 +116,7 @@ function Login({ onLogin }: { onLogin: (a: Auth) => void }) {
       </label>
       <button disabled={busy}>{busy ? 'Checking…' : 'Sign in'}</button>
       {error && <p className="error" role="alert">{error}</p>}
-      <p className="hint">Demo users: alice@example.com / bob@example.com / admin@flashreserve.dev — password: password</p>
+      <p className="hint">Demo users: alice@example.com / bob@example.com / admin@Synchros.dev — password: password</p>
     </form>
   );
 }

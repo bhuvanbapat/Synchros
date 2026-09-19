@@ -1,20 +1,20 @@
-spring:
+﻿spring:
   autoconfigure:
     exclude:
       - org.springframework.boot.kafka.autoconfigure.KafkaAutoConfiguration
       - org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration
       - org.springframework.boot.data.redis.autoconfigure.DataRedisRepositoriesAutoConfiguration
   datasource:
-    url: jdbc:postgresql://localhost:5432/flashreserve_test
-    username: flashreserve
-    password: flashreserve_local_dev
+    url: jdbc:postgresql://localhost:5432/Synchros_test
+    username: Synchros
+    password: Synchros_local_dev
   jpa:
     hibernate:
       ddl-auto: validate
   flyway:
     clean-disabled: false
 
-flashreserve:
+Synchros:
   kafka:
     enabled: false
   jobs:

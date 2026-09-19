@@ -1,4 +1,4 @@
-# Observability
+﻿# Observability
 
 ## Request correlation
 
@@ -31,20 +31,20 @@ exceptions (with stack, server-side only).
 **HTTP**: `http_server_requests_seconds{uri,method,status}` via Spring Boot
 observability — request count, latency histograms, error rate by status.
 
-**Business counters** (`FlashMetrics`):
+**Business counters** (`SynchrosMetrics`):
 
 | Metric | Meaning |
 |---|---|
-| `flashreserve_reservation_duration` (Timer) | reservation creation latency |
-| `flashreserve_reservation_outcome{outcome=success}` | successful holds |
-| `flashreserve_reservation_outcome{outcome=inventory_unavailable}` | content losses (sold out) |
-| `flashreserve_reservation_outcome{outcome=error}` | unexpected failures |
-| `flashreserve_idempotent_replays` | cache-served replays (duplicate-traffic share) |
-| `flashreserve_expired_holds` | TTL expirations (abandonment rate) |
+| `Synchros_reservation_duration` (Timer) | reservation creation latency |
+| `Synchros_reservation_outcome{outcome=success}` | successful holds |
+| `Synchros_reservation_outcome{outcome=inventory_unavailable}` | content losses (sold out) |
+| `Synchros_reservation_outcome{outcome=error}` | unexpected failures |
+| `Synchros_idempotent_replays` | cache-served replays (duplicate-traffic share) |
+| `Synchros_expired_holds` | TTL expirations (abandonment rate) |
 
-**Rate limit**: `flashreserve_rate_limit{outcome=allowed|rejected}`.
+**Rate limit**: `Synchros_rate_limit{outcome=allowed|rejected}`.
 
-**Cache**: `flashreserve_cache{name, outcome=hit|miss|error}` — hit ratio
+**Cache**: `Synchros_cache{name, outcome=hit|miss|error}` — hit ratio
 and (via `error`) Redis degradation are both visible.
 
 **Outbox/Kafka lag**: outbox state counts per PUBLISHED/PENDING/FAILED/DEAD
@@ -90,15 +90,15 @@ HTTP 4318, debug exporter writing every span to stdout):
 
 ```
 docker compose -f docker-compose.ha.yml up -d --profile tracing otel-collector
-docker network connect flashreserve_default flashreserve-otel-collector  # bridge to the main stack
-# app .env: OTEL_EXPORTER_OTLP_ENDPOINT=http://flashreserve-otel-collector:4318
+docker network connect Synchros_default Synchros-otel-collector  # bridge to the main stack
+# app .env: OTEL_EXPORTER_OTLP_ENDPOINT=http://Synchros-otel-collector:4318
 ```
 
 **Verification drill (run live 2026-09-07):** enable
 `SPAN_PROBE_ENABLED=true` alongside the endpoint, then
 `POST /api/dev/span-probe` with a bearer token. The probe emits one SDK
-span directly — if `flashreserve.span-probe` appears in
-`docker logs flashreserve-otel-collector`, exporter wiring is proven
+span directly — if `Synchros.span-probe` appears in
+`docker logs Synchros-otel-collector`, exporter wiring is proven
 independently of HTTP-observation config. The same drill observed HTTP
 `authorize request` and `task outboxPublisher.publishPending` spans,
 proving the whole instrumented pipeline end-to-end. The probe endpoint is
@@ -107,10 +107,10 @@ production.
 
 ## Reconciliation gauges (alertable)
 
-The scheduled sweep (every `flashreserve.reconciliation.interval-ms`,
+The scheduled sweep (every `Synchros.reconciliation.interval-ms`,
 default 5 min) exports two gauges to Prometheus:
-`flashreserve_reconciliation_findings` (counter — every finding bumps it)
-and `flashreserve_reconciliation_consistent` (1 = last run clean, 0 =
+`Synchros_reconciliation_findings` (counter — every finding bumps it)
+and `Synchros_reconciliation_consistent` (1 = last run clean, 0 =
 findings). A minimal alert rule is then:
-`flashreserve_reconciliation_consistent == 0` for 10m → page. The repo
+`Synchros_reconciliation_consistent == 0` for 10m → page. The repo
 intentionally ships no dashboards; the gauges are the contract.

@@ -1,4 +1,4 @@
-# SESSION HANDOFF — READ THIS FIRST (before touching ANY code)
+﻿# SESSION HANDOFF — READ THIS FIRST (before touching ANY code)
 
 This file exists so a fresh session NEVER re-diagnoses solved problems,
 NEVER re-breaks fixed code, and NEVER "fixes" what isn't broken.
@@ -23,7 +23,7 @@ every claim are at the bottom — run them, don't re-derive them.
 | `Invoke-WebRequest` returns BYTE STREAMS for some content (health check prints numbers) | Match with `-match '"UP"'` on `$r.Content` (works despite stream), or use `Invoke-RestMethod` |
 | Docker Desktop is often not running at session start | `Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe"` then poll `docker version` until it answers |
 | npm build can exceed 5-min default tool timeout on first run (rolldown plugin timings) | Use a ≥600000ms timeout |
-| The tracing collector (HA compose, profile `tracing`) starts on network `flashreserve-ha_default`, the main app on `flashreserve_default` | `docker network connect flashreserve_default flashreserve-otel-collector` then `docker compose restart app` — DNS resolves at container start, so restart is REQUIRED after connecting |
+| The tracing collector (HA compose, profile `tracing`) starts on network `Synchros-ha_default`, the main app on `Synchros_default` | `docker network connect Synchros_default Synchros-otel-collector` then `docker compose restart app` — DNS resolves at container start, so restart is REQUIRED after connecting |
 | `.env` is a LIVE file (gitignored); edits to it are not in git | Don't "fix" .env in commits; it's machine-local |
 
 ## 1. Architecture facts that are TRUE BY DESIGN (never "fix" these)
@@ -45,7 +45,7 @@ every claim are at the bottom — run them, don't re-derive them.
 - **Login limiter FAILS OPEN** when Redis is down (availability of login >
   strictness of a counter). Same for RedisRateLimiter. Deliberate.
 - **`@Profile("span-probe")` was dead code** → replaced by
-  `@ConditionalOnProperty(flashreserve.span-probe.enabled)`. Dormant by
+  `@ConditionalOnProperty(Synchros.span-probe.enabled)`. Dormant by
   default is the point.
 - **Consumers exclude Redis in most ITs by design** (fail-open paths
   don't need it); only RedisRateLimitCacheIT boots real Redis.
@@ -95,14 +95,14 @@ every claim are at the bottom — run them, don't re-derive them.
   markFailed no longer clears the lease itself.
 
 ### 2.7 Login response hardcoded `expiresIn: 3600`
-- **Cause:** AuthController ignored `flashreserve.jwt.ttl-seconds`; k6
+- **Cause:** AuthController ignored `Synchros.jwt.ttl-seconds`; k6
   helpers cache tokens off expiresIn → a shortened TTL would break long
   benchmarks mid-flight.
 - **Fix:** inject the configured TTL and return it.
 
 ### 2.8 SpanProbeController unreachable (dead endpoint)
 - Was `@Profile("span-probe")` — nothing activates that profile.
-- **Fix:** `@ConditionalOnProperty("flashreserve.span-probe.enabled")`,
+- **Fix:** `@ConditionalOnProperty("Synchros.span-probe.enabled")`,
   JWT-protected, documented, exercised in the live tracing drill.
 
 ### 2.9 OTLP METRICS registry noise-POSTing localhost:4318 every 60s
@@ -151,7 +151,7 @@ every claim are at the bottom — run them, don't re-derive them.
 | Login succeeds right after 5 failed attempts in ITs (no Redis there) | CORRECT — limiter fails open; lockout is exercised against live Redis in smoke + RedisRateLimitCacheIT |
 | 16 threads on one idempotency key → 15 "in-flight" 409/InFlight responses | CORRECT — exactly 1 wins |
 | Outbox rows stay PENDING briefly after commit | CORRECT — poll-based drain, ≤500ms |
-| `flashreserve_reservation_outcome{outcome="error"}` increments | Check the cause — it counts DomainException failures like INVENTORY_UNAVAILABLE too? No — those are `inventory_unavailable`. If you see error counts, grep app logs for the actual exception |
+| `Synchros_reservation_outcome{outcome="error"}` increments | Check the cause — it counts DomainException failures like INVENTORY_UNAVAILABLE too? No — those are `inventory_unavailable`. If you see error counts, grep app logs for the actual exception |
 | KafkaLoopIT takes ~60s | NORMAL — drains the shared-container backlog through a real broker |
 | Health endpoint prints numbers as separate lines | PowerShell byte-stream rendering artifact; use Invoke-RestMethod |
 
@@ -188,12 +188,12 @@ docker compose up -d --build
 
 # Tracing drill (optional, live)
 docker compose -f docker-compose.ha.yml --profile tracing up -d otel-collector
-docker network connect flashreserve_default flashreserve-otel-collector
-# .env: OTEL_EXPORTER_OTLP_ENDPOINT=http://flashreserve-otel-collector:4318
+docker network connect Synchros_default Synchros-otel-collector
+# .env: OTEL_EXPORTER_OTLP_ENDPOINT=http://Synchros-otel-collector:4318
 #       SPAN_PROBE_ENABLED=true
 docker compose up -d --force-recreate app
 # login, POST /api/dev/span-probe with Bearer; then:
-docker logs flashreserve-otel-collector --since 3m   # must show flashreserve.span-probe spans
+docker logs Synchros-otel-collector --since 3m   # must show Synchros.span-probe spans
 ```
 
 **Pass state as of 2026-09-07:** backend 87/87 · frontend 6/6 + build

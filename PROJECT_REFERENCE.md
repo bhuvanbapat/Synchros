@@ -1,4 +1,4 @@
-# FlashReserve — Complete Project Reference
+﻿# Synchros — Complete Project Reference
 
 Ultra-detailed inventory of everything in this repository. Every claim
 here is verifiable against the code it describes.
@@ -13,18 +13,18 @@ guarantee no oversell, no duplicate orders, no lost events?*
 ## 1. Repository layout
 
 ```
-FlashReserve/
+Synchros/
 ├── backend/                          Spring Boot 4.1.1, Java 25
 │   ├── mvnw, mvnw.cmd                 Maven wrapper (unix + windows, LF-safe)
 │   ├── .mvn/wrapper/                 wrapper jar + distribution properties (Maven 3.9.12)
 │   ├── pom.xml                        dependencies (see §3)
 │   ├── Dockerfile                     multi-stage build -> runtime image
 │   └── src/
-│       ├── main/java/com/flashreserve/    23 packages, 88 files (§4)
+│       ├── main/java/com/Synchros/    23 packages, 88 files (§4)
 │       ├── main/resources/
 │       │   ├── application.yml            all config, env-overridable (§6)
 │       │   └── db/migration/              Flyway V1–V5 (§5)
-│       ├── test/java/com/flashreserve/    17 test files (§7)
+│       ├── test/java/com/Synchros/    17 test files (§7)
 │       └── test/resources/application-test.yml
 ├── frontend/                         React 19 + TypeScript + Vite 8
 │   ├── src/
@@ -137,7 +137,7 @@ auth libraries to audit.
 | `order` | Order, OrderService, OrderController, OrderRepository, OrderLockRepository | order creation (reservation row lock + UNIQUE per reservation), payment application (order row lock, three-outcome switch) |
 | `payment` | MockPaymentGateway (weighted SUCCESS/FAILURE/TIMEOUT), WebhookSigner (HMAC-SHA256), PaymentRelay (signs every delivery), PaymentWebhookController (verifies X-Signature over raw bytes), PaymentWebhookService, Payment, PaymentAttempt, repositories | deterministic gateway; relay delivers through the signed webhook path so HMAC verification + idempotency run on every simulated payment |
 | `idempotency` | IdempotencyService, IdempotencyKey, IdempotencyKeyRepository | (user, operation, key) claims via `INSERT .. ON CONFLICT DO NOTHING` (rowcount semantics — never exception-based, see ADR-007), SHA-256 fingerprints, cached replays, 24h TTL purge |
-| `outbox` | OutboxService (MANDATORY propagation — must join the business tx), OutboxEvent, OutboxRepository, OutboxPublisher, FlashReserveTopics | event rows commit with mutations; publisher drains with **zero broker I/O inside any transaction** (short read/mark txs via TransactionTemplate); bounded retries → DEAD |
+| `outbox` | OutboxService (MANDATORY propagation — must join the business tx), OutboxEvent, OutboxRepository, OutboxPublisher, SynchrosTopics | event rows commit with mutations; publisher drains with **zero broker I/O inside any transaction** (short read/mark txs via TransactionTemplate); bounded retries → DEAD |
 | `kafka` | EventConsumers (listeners), EventHandlers (transactional dedup + projections), ProcessedEvent, DeadLetterService, DeadLetter, ConditionalOnKafkaEnabled | at-least-once delivery, exactly-once effects via processed_event marker; poison quarantine after 5 attempts; flag-gated for hermetic tests |
 | `cache` | CatalogCache | Redis availability hints, 3s TTL, fail-open, hit/miss/error metrics |
 | `ratelimit` | RateLimiter, RedisRateLimiter | atomic Lua token bucket per (endpoint, user); fails open; allowed/rejected metrics |
@@ -145,14 +145,14 @@ auth libraries to audit.
 | `notification` | Notification, NotificationService, NotificationRepository | user inbox projection |
 | `analytics` | AnalyticsEvent, AnalyticsService, AnalyticsRepository | event-feed projection + rollups for admin |
 | `audit` | AuditEvent, AuditService, AuditRepository | append-only trail; entries commit with the mutation (REQUIRED); requestId captured from MDC |
-| `security` | SecurityConfig, JwtAuthFilter, JwtService, FlashUserDetails(+Service), CurrentUserArgumentResolver, UnauthorizedException | JWT bearer auth (HS256, JDK-only), fresh-principal reload per request, structured 401/403 JSON, ROLE_ADMIN gates on `/api/admin/**` + `/actuator/**`, CORS allow-list, suspended-account rejection, resolver for `@CurrentUser` |
+| `security` | SecurityConfig, JwtAuthFilter, JwtService, SynchrosUserDetails(+Service), CurrentUserArgumentResolver, UnauthorizedException | JWT bearer auth (HS256, JDK-only), fresh-principal reload per request, structured 401/403 JSON, ROLE_ADMIN gates on `/api/admin/**` + `/actuator/**`, CORS allow-list, suspended-account rejection, resolver for `@CurrentUser` |
 | `user` | User, UserService, AuthController, UserController, AuthDtos, UserRepository | register (race-safe: UNIQUE collision → clean 400), login validation, /me endpoints |
 | `common` | DomainException (+ 13 stable error codes), GlobalExceptionHandler (incl. firewall rejections → 400), NotFoundException, RequestIdFilter, RawBodyCaptureFilter | `{code, message, requestId, timestamp}` error model; X-Request-Id propagation into MDC; byte-preserving raw-body capture for HMAC |
-| `config` | FlashReserveProperties, PropertiesConfig, WebMvcConfig | typed, env-overridable configuration |
-| `metrics` | FlashMetrics | business counters/timers (see §11) |
+| `config` | SynchrosProperties, PropertiesConfig, WebMvcConfig | typed, env-overridable configuration |
+| `metrics` | SynchrosMetrics | business counters/timers (see §11) |
 | `health` | HealthController | app-level DB + Redis checks with pooled-connection hygiene |
 | `admin` | AdminController | ops API: metrics (grouped queries), outbox failed/dead, dead letters, audit, analytics, reconciliation, idempotency purge |
-| root | FlashReserveApplication | `@SpringBootApplication` + `@EnableScheduling` |
+| root | SynchrosApplication | `@SpringBootApplication` + `@EnableScheduling` |
 
 ---
 
@@ -175,7 +175,7 @@ frozen; changes only ever as new migrations.
 
 | Knob | Default | Effect |
 |---|---|---|
-| `SPRING_DATASOURCE_URL/USERNAME/PASSWORD` | localhost:5432/flashreserve | DB connection |
+| `SPRING_DATASOURCE_URL/USERNAME/PASSWORD` | localhost:5432/Synchros | DB connection |
 | `JWT_SECRET` | dev-only-… (≥32 chars) | HS256 signing key — startup fails below 32 |
 | `JWT_TTL_SECONDS` | 3600 | token lifetime |
 | `PAYMENT_WEBHOOK_SECRET` | dev-only-… (≥32 chars) | webhook HMAC shared secret |
@@ -191,8 +191,8 @@ frozen; changes only ever as new migrations.
 | `RATE_LIMIT_RESERVATIONS_PER_MINUTE / BURST` | 30 / 10 | token bucket per user |
 | `OUTBOX_POLL_INTERVAL_MS / MAX_RETRIES` | 500 / 10 | publisher drain + retry bound |
 | `PAYMENT_SUCCESS/FAILURE/TIMEOUT_WEIGHT` | 0.85/0.10/0.05 | mock gateway distribution |
-| `FLASHRESERVE_SCHEDULING_ENABLED` | true | jobs on/off (tests: off) |
-| `flashreserve.kafka.enabled` | true | listeners + publisher on/off (tests: off) |
+| `Synchros_SCHEDULING_ENABLED` | true | jobs on/off (tests: off) |
+| `Synchros.kafka.enabled` | true | listeners + publisher on/off (tests: off) |
 | `FRONTEND_ORIGIN` | http://localhost:5173 | CORS allow-list entry |
 
 Tomcat threads 200 / Hikari pool 40 (tuned for the 500-VU benchmark).

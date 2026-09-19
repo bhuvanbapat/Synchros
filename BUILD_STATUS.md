@@ -1,4 +1,4 @@
-# BUILD STATUS
+﻿# BUILD STATUS
 
 Living checklist — updated as work completes. Last full verification:
 2026-09-07 (all measurements taken live on this machine, never invented).
@@ -6,7 +6,7 @@ Living checklist — updated as work completes. Last full verification:
 ## Infrastructure
 
 - [x] Environment inspected (Java 25, Maven wrapper, Docker 29, k6 v1.4.0, git, Node 24)
-- [x] Project isolated at `Desktop\AI Project 3\FlashReserve` (touches nothing else)
+- [x] Project isolated at `Desktop\AI Project 3\Synchros` (touches nothing else)
 - [x] Docker Compose: postgres / redis / kafka / app — no duplicated or decorative services
 - [x] `.env.example` with safe local defaults; `.env` gitignored
 - [x] Graphify available (v0.9.48) for dev-time structural analysis
@@ -28,7 +28,7 @@ Living checklist — updated as work completes. Last full verification:
       + login brute-force lockout (5 fails / 15 min per (email, ip), fail-open)
 - [x] Audit trail (append-only, requestId captured) + request correlation end-to-end
 - [x] Observability: Actuator, Micrometer business counters + reconciliation gauges
-      (flashreserve_reconciliation_findings / _consistent), structured logs
+      (Synchros_reconciliation_findings / _consistent), structured logs
 - [x] Reconciliation: pool invariants, stuck holds, orphaned orders (REPEATABLE_READ snapshot);
       scheduled every 5 min + on-demand admin endpoint; findings → metrics
 - [x] Security: **JWT bearer auth** (HS256, JDK-only issuer/verifier, constant-time compare,
@@ -104,7 +104,7 @@ Living checklist — updated as work completes. Last full verification:
 - [x] OTLP metrics push disabled by default (was noise-POSTing localhost:4318 every 60s)
 - [x] JWT-protected span probe (POST /api/dev/span-probe, SPAN_PROBE_ENABLED) proves
       exporter wiring independently of HTTP observation
-- [x] **Live drill: flashreserve.span-probe + HTTP authorize-request + outbox scheduler
+- [x] **Live drill: Synchros.span-probe + HTTP authorize-request + outbox scheduler
       spans received and printed by the shipped collector (v0.160, OTLP/HTTP + gRPC)**
 
 ## Live smoke drill (tools/smoke.ps1 — 15 steps, all passing 2026-09-07)

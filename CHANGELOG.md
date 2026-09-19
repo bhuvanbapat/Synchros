@@ -1,6 +1,6 @@
-# Changelog
+﻿# Changelog
 
-All notable changes to FlashReserve. Format: Keep a Changelog; this
+All notable changes to Synchros. Format: Keep a Changelog; this
 project does not use semantic versioning (portfolio project, see git log).
 
 ## [Unreleased] — second hardening pass (closing the documented-limitations tier)
@@ -39,8 +39,8 @@ project does not use semantic versioning (portfolio project, see git log).
   with **exponential backoff** (2^retry s, cap 60s).
 - **Scheduled, alertable reconciliation** (`ReconciliationJob`): full
   sweep every 5 min; findings increment
-  `flashreserve_reconciliation_findings`, any finding flips
-  `flashreserve_reconciliation_consistent` to 0 — one Prometheus alert
+  `Synchros_reconciliation_findings`, any finding flips
+  `Synchros_reconciliation_consistent` to 0 — one Prometheus alert
   expression away from paging.
 - **Event-state gate**: reservations refused for CANCELLED / SOLD_OUT /
   CONCLUDED events and pre-sales-window events with a clean
@@ -86,7 +86,7 @@ project does not use semantic versioning (portfolio project, see git log).
   a FAILED row sat unleased; state flip + backoff lease now commit in
   one short transaction.
 - **Login response lied about token TTL** (`expiresIn` hardcoded 3600
-  regardless of `flashreserve.jwt.ttl-seconds`) — k6 helpers cache
+  regardless of `Synchros.jwt.ttl-seconds`) — k6 helpers cache
   tokens off `expiresIn`, so a shortened TTL would have broken
   long-running benchmarks mid-flight. Now the real configured value.
 - **`SpanProbeController` was unreachable** (gated on a profile nothing
@@ -106,7 +106,7 @@ project does not use semantic versioning (portfolio project, see git log).
   reconciliation consistent with 0 findings.
 - Live tracing drill: app with `OTEL_EXPORTER_OTLP_ENDPOINT` +
   `SPAN_PROBE_ENABLED=true` against the shipped collector —
-  `flashreserve.span-probe`, HTTP `authorize request`, and scheduler
+  `Synchros.span-probe`, HTTP `authorize request`, and scheduler
   spans all received and printed by the collector.
 - Outbox drained 838/838 events live post-fix; 0 FAILED/PENDING/DEAD.
 
@@ -206,8 +206,8 @@ project does not use semantic versioning (portfolio project, see git log).
 - **Inventory endpoints exposed sequential DB ids**; all lookups are
   UUID-only now.
 - Reservation failures now increment an error counter
-  (`flashreserve_reservation_outcome{outcome=error}`);
-  `flashreserve_expired_holds` wired to the expiration job.
+  (`Synchros_reservation_outcome{outcome=error}`);
+  `Synchros_expired_holds` wired to the expiration job.
 
 ### Removed — dead code
 - `InventoryItem` entity + repository + `inventory_item` table (V5
@@ -216,7 +216,7 @@ project does not use semantic versioning (portfolio project, see git log).
 - Unused repository queries (PaymentRepository ×2, AuditRepository,
   AnalyticsRepository, OutboxRepository's misplaced idempotency purge +
   dead inner interface), `CatalogCache` catalog methods,
-  `AuditService.recordNew`, `FlashReserveTopics.NOTIFICATION_EVENTS`,
+  `AuditService.recordNew`, `SynchrosTopics.NOTIFICATION_EVENTS`,
   `InventoryPool.addAvailable`, dead `cancelIfHeld`/`confirmIfHeld`
   conditional updates, unused imports.
 

@@ -1,10 +1,10 @@
--- V2: seed demo data (venue, admin + demo users, one flash-sale event, inventory)
+﻿-- V2: seed demo data (venue, admin + demo users, one flash-sale event, inventory)
 -- Passwords are bcrypt hashes of 'password' (demo only, never production).
 -- Hash generated with Spring Security BCryptPasswordEncoder (strength 10).
 INSERT INTO venue (name) VALUES ('Neon Dome Arena');
 
 INSERT INTO fr_user (email, password_hash, role) VALUES
-  ('admin@flashreserve.dev', '$2a$10$/xjLsBfOKcKAT2kSbuoA0e45YUjHpIhXvHBqTzatkR2IOqFvVkM8a', 'ADMIN'),
+  ('admin@Synchros.dev', '$2a$10$/xjLsBfOKcKAT2kSbuoA0e45YUjHpIhXvHBqTzatkR2IOqFvVkM8a', 'ADMIN'),
   ('alice@example.com',      '$2a$10$/xjLsBfOKcKAT2kSbuoA0e45YUjHpIhXvHBqTzatkR2IOqFvVkM8a', 'USER'),
   ('bob@example.com',        '$2a$10$/xjLsBfOKcKAT2kSbuoA0e45YUjHpIhXvHBqTzatkR2IOqFvVkM8a', 'USER');
 
