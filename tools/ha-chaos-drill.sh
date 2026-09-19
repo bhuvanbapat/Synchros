@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 set -e
 BS1="kafka-1:29092"
 BS3="kafka-3:29095"

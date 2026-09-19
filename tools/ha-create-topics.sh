@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 set -e
 BS="kafka-1:29092"
 for t in synchros.events synchros.notifications synchros.payments; do
