@@ -52,8 +52,8 @@ export function authHeaders(user) {
 
 // Business outcome counters (distinct from k6's protocol-level metrics).
 export const ctr = {
-  success: new Counter('flashreserve_reservation_success'),
-  unavailable: new Counter('flashreserve_reservation_unavailable'),
-  rateLimited: new Counter('flashreserve_rate_limited'),
-  idempotentReplay: new Counter('flashreserve_idempotent_replay'),
+  success: new Counter('synchros_reservation_success'),
+  unavailable: new Counter('synchros_reservation_unavailable'),
+  rateLimited: new Counter('synchros_rate_limited'),
+  idempotentReplay: new Counter('synchros_idempotent_replay'),
 };
