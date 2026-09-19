@@ -1,4 +1,4 @@
-// Shared helpers for FlashReserve load tests.
+﻿// Shared helpers for FlashReserve load tests.
 import http from 'k6/http';
 import { Counter } from 'k6/metrics';
 
@@ -7,7 +7,7 @@ export const BASE = __ENV.BASE_URL || 'http://localhost:8081';
 export const USERS = [
   'alice@example.com',
   'bob@example.com',
-  'admin@flashreserve.dev',
+  'admin@synchros.dev',
 ];
 
 export const PASSWORD = __ENV.USER_PASSWORD || 'password';

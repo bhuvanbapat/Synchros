@@ -1,4 +1,4 @@
-# FlashReserve live JWT + HMAC smoke test (run against a live app on :8081)
+﻿# FlashReserve live JWT + HMAC smoke test (run against a live app on :8081)
 $ErrorActionPreference = 'Stop'
 $base = 'http://localhost:8081'
 $ct = @{ 'Content-Type' = 'application/json' }
@@ -60,7 +60,7 @@ $notif = Invoke-RestMethod -Uri "$base/api/users/me/notifications" -Headers $bea
 Write-Host "NOTIFICATIONS OK — $($notif.Count) item(s)"
 
 # 10. Admin metrics as admin
-$adminLogin = Post '/api/auth/login' $ct '{"email":"admin@flashreserve.dev","password":"password"}'
+$adminLogin = Post '/api/auth/login' $ct '{"email":"admin@synchros.dev","password":"password"}'
 $admin = @{ Authorization = "Bearer $($adminLogin.accessToken)" }
 $metrics = Invoke-RestMethod -Uri "$base/api/admin/metrics" -Headers $admin -TimeoutSec 15
 Write-Host "ADMIN OK — pools: $($metrics.pools.Count), outbox states: $($metrics.outbox.PSObject.Properties.Name -join '/')"
