@@ -1,4 +1,4 @@
-﻿package com.Synchros.inventory;
+package com.synchros.inventory;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;

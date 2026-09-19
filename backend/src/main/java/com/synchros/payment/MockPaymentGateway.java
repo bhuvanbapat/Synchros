@@ -1,6 +1,6 @@
-﻿package com.Synchros.payment;
+package com.synchros.payment;
 
-import com.Synchros.config.SynchrosProperties;
+import com.synchros.config.SynchrosProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;

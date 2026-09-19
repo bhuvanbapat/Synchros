@@ -1,8 +1,8 @@
-﻿package com.Synchros.user;
+package com.synchros.user;
 
-import com.Synchros.audit.AuditService;
-import com.Synchros.common.DomainException;
-import com.Synchros.common.NotFoundException;
+import com.synchros.audit.AuditService;
+import com.synchros.common.DomainException;
+import com.synchros.common.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

@@ -1,7 +1,7 @@
-﻿package com.Synchros.reservation;
+package com.synchros.reservation;
 
-import com.Synchros.config.SynchrosProperties;
-import com.Synchros.order.OrderService;
+import com.synchros.config.SynchrosProperties;
+import com.synchros.order.OrderService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -23,7 +23,7 @@ import java.util.List;
  *    released hold. The payment flow surfaces this as RESERVATION_EXPIRED.
  */
 @Component
-@ConditionalOnProperty(name = "Synchros.jobs.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "synchros.jobs.enabled", havingValue = "true", matchIfMissing = true)
 public class ReservationExpirationJob {
 
     private static final Logger log = LoggerFactory.getLogger(ReservationExpirationJob.class);
@@ -40,7 +40,7 @@ public class ReservationExpirationJob {
         this.props = props;
     }
 
-    @Scheduled(fixedDelayString = "${Synchros.expiration.scan-interval-ms:1000}")
+    @Scheduled(fixedDelayString = "${synchros.expiration.scan-interval-ms:1000}")
     public void expireStaleHolds() {
         Instant cutoff = Instant.now();
         List<Reservation> stale = reservationService.findExpiredHeld(

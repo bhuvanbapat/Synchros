@@ -1,7 +1,7 @@
-﻿package com.Synchros.idempotency;
+package com.synchros.idempotency;
 
 import tools.jackson.databind.ObjectMapper;
-import com.Synchros.common.DomainException;
+import com.synchros.common.DomainException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;

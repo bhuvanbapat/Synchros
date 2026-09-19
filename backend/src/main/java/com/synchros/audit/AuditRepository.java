@@ -1,4 +1,4 @@
-﻿package com.Synchros.audit;
+package com.synchros.audit;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

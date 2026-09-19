@@ -1,4 +1,4 @@
-﻿package com.Synchros.kafka;
+package com.synchros.kafka;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

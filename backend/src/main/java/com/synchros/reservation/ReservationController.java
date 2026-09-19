@@ -1,10 +1,10 @@
-﻿package com.Synchros.reservation;
+package com.synchros.reservation;
 
-import com.Synchros.catalog.CatalogService;
-import com.Synchros.common.DomainException;
-import com.Synchros.idempotency.IdempotencyService;
-import com.Synchros.security.CurrentUser;
-import com.Synchros.security.SynchrosUserDetails;
+import com.synchros.catalog.CatalogService;
+import com.synchros.common.DomainException;
+import com.synchros.idempotency.IdempotencyService;
+import com.synchros.security.CurrentUser;
+import com.synchros.security.SynchrosUserDetails;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,14 +28,14 @@ public class ReservationController {
     private final ReservationService reservationService;
     private final CatalogService catalogService;
     private final IdempotencyService idempotencyService;
-    private final com.Synchros.ratelimit.RateLimiter rateLimiter;
-    private final com.Synchros.metrics.SynchrosMetrics metrics;
+    private final com.synchros.ratelimit.RateLimiter rateLimiter;
+    private final com.synchros.metrics.SynchrosMetrics metrics;
 
     public ReservationController(ReservationService reservationService,
                                  CatalogService catalogService,
                                  IdempotencyService idempotencyService,
-                                 com.Synchros.ratelimit.RateLimiter rateLimiter,
-                                 com.Synchros.metrics.SynchrosMetrics metrics) {
+                                 com.synchros.ratelimit.RateLimiter rateLimiter,
+                                 com.synchros.metrics.SynchrosMetrics metrics) {
         this.reservationService = reservationService;
         this.catalogService = catalogService;
         this.idempotencyService = idempotencyService;
@@ -140,7 +140,7 @@ public class ReservationController {
 
     private UUID resolveEventPublicId(Reservation r) {
         return catalogService.findEventByDbId(r.getEventId())
-                .map(com.Synchros.catalog.Event::getPublicId)
+                .map(com.synchros.catalog.Event::getPublicId)
                 .orElse(null);
     }
 }

@@ -1,4 +1,4 @@
-﻿package com.Synchros.order;
+package com.synchros.order;
 
 import jakarta.persistence.*;
 

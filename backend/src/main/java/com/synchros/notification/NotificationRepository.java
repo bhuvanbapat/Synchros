@@ -1,4 +1,4 @@
-﻿package com.Synchros.notification;
+package com.synchros.notification;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

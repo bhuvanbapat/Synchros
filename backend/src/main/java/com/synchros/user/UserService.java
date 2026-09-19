@@ -1,6 +1,6 @@
-﻿package com.Synchros.user;
+package com.synchros.user;
 
-import com.Synchros.common.DomainException;
+import com.synchros.common.DomainException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -15,12 +15,12 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
-    private final com.Synchros.security.LoginAttemptLimiter loginLimiter;
+    private final com.synchros.security.LoginAttemptLimiter loginLimiter;
 
     public UserService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
                        AuthenticationManager authenticationManager,
-                       com.Synchros.security.LoginAttemptLimiter loginLimiter) {
+                       com.synchros.security.LoginAttemptLimiter loginLimiter) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;

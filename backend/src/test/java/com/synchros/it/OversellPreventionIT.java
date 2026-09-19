@@ -1,11 +1,11 @@
-﻿package com.Synchros.it;
+package com.synchros.it;
 
-import com.Synchros.config.SynchrosProperties;
-import com.Synchros.inventory.InventoryPool;
-import com.Synchros.inventory.InventoryPoolRepository;
-import com.Synchros.outbox.OutboxService;
-import com.Synchros.reservation.Reservation;
-import com.Synchros.reservation.ReservationService;
+import com.synchros.config.SynchrosProperties;
+import com.synchros.inventory.InventoryPool;
+import com.synchros.inventory.InventoryPoolRepository;
+import com.synchros.outbox.OutboxService;
+import com.synchros.reservation.Reservation;
+import com.synchros.reservation.ReservationService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

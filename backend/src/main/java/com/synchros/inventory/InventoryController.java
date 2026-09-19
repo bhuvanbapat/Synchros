@@ -1,7 +1,7 @@
-﻿package com.Synchros.inventory;
+package com.synchros.inventory;
 
-import com.Synchros.cache.CatalogCache;
-import com.Synchros.catalog.CatalogService;
+import com.synchros.cache.CatalogCache;
+import com.synchros.catalog.CatalogService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 

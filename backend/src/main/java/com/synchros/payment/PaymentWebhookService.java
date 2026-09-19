@@ -1,8 +1,8 @@
-﻿package com.Synchros.payment;
+package com.synchros.payment;
 
-import com.Synchros.audit.AuditService;
-import com.Synchros.common.DomainException;
-import com.Synchros.order.OrderService;
+import com.synchros.audit.AuditService;
+import com.synchros.common.DomainException;
+import com.synchros.order.OrderService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;

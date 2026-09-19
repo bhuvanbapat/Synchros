@@ -1,10 +1,10 @@
-﻿package com.Synchros.it;
+package com.synchros.it;
 
-import com.Synchros.reconciliation.ReconciliationService;
-import com.Synchros.reservation.Reservation;
-import com.Synchros.reservation.ReservationService;
-import com.Synchros.inventory.InventoryPool;
-import com.Synchros.inventory.InventoryPoolRepository;
+import com.synchros.reconciliation.ReconciliationService;
+import com.synchros.reservation.Reservation;
+import com.synchros.reservation.ReservationService;
+import com.synchros.inventory.InventoryPool;
+import com.synchros.inventory.InventoryPoolRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

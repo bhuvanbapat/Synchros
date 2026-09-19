@@ -1,4 +1,4 @@
-﻿package com.Synchros.outbox;
+package com.synchros.outbox;
 
 import tools.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;

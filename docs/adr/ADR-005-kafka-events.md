@@ -1,4 +1,4 @@
-﻿# ADR-005: Kafka event architecture (few topics, at-least-once + dedup)
+# ADR-005: Kafka event architecture (few topics, at-least-once + dedup)
 
 **Status:** Accepted
 
@@ -25,7 +25,7 @@ without coupling the reservation transaction to broker availability.
 - Malformed/unidentifiable messages quarantine to `dead_letter`
   immediately; handler errors retry up to 5 attempts then quarantine and
   ACK (poison never blocks a partition).
-- Kafka dependency is flag-gated (`Synchros.kafka.enabled`) so
+- Kafka dependency is flag-gated (`synchros.kafka.enabled`) so
   Postgres-only integration tests stay hermetic.
 
 ## Consequences

@@ -1,4 +1,4 @@
-﻿package com.Synchros.ratelimit;
+package com.synchros.ratelimit;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -61,7 +61,7 @@ public class RedisRateLimiter implements RateLimiter {
 
     public RedisRateLimiter(ObjectProvider<StringRedisTemplate> redisProvider,
                             MeterRegistry meters,
-                            com.Synchros.config.SynchrosProperties props) {
+                            com.synchros.config.SynchrosProperties props) {
         this.redisProvider = redisProvider;
         this.permitsPerSecond = props.getRateLimit().getReservationsPerMinute() / 60.0;
         this.burst = props.getRateLimit().getBurst();

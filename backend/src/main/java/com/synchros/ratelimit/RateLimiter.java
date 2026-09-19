@@ -1,4 +1,4 @@
-﻿package com.Synchros.ratelimit;
+package com.synchros.ratelimit;
 
 /**
  * Per-user, per-endpoint-class rate limiting contract.

@@ -1,4 +1,4 @@
-﻿package com.Synchros.kafka;
+package com.synchros.kafka;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -14,7 +14,7 @@ import java.util.UUID;
 /**
  * Kafka consumers with end-to-end idempotency and bounded-error handling.
  *
- * Registered only when Synchros.kafka.enabled=true so integration tests
+ * Registered only when synchros.kafka.enabled=true so integration tests
  * that exercise the pure-Postgres paths don't spin up listener containers.
  *
  * Delivery semantics: at-least-once. Duplicates are made harmless by the

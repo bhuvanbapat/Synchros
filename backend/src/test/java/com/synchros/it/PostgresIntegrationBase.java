@@ -1,4 +1,4 @@
-﻿package com.Synchros.it;
+package com.synchros.it;
 
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -41,13 +41,13 @@ public abstract class PostgresIntegrationBase {
                 () -> "org.springframework.boot.kafka.autoconfigure.KafkaAutoConfiguration,"
                     + "org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration,"
                     + "org.springframework.boot.data.redis.autoconfigure.DataRedisRepositoriesAutoConfiguration");
-        registry.add("Synchros.kafka.enabled", () -> "false");
+        registry.add("synchros.kafka.enabled", () -> "false");
         // Tests drive expiration/outbox logic synchronously; disable the
         // background jobs so they never race with assertions.
-        registry.add("Synchros.jobs.enabled", () -> "false");
-        registry.add("Synchros.jwt.secret",
+        registry.add("synchros.jobs.enabled", () -> "false");
+        registry.add("synchros.jwt.secret",
                 () -> "it-test-jwt-secret-0123456789-it-test-jwt-secret");
-        registry.add("Synchros.payment.webhook-secret",
+        registry.add("synchros.payment.webhook-secret",
                 () -> "it-test-webhook-secret-0123456789-it-test-wh");
         registry.add("spring.flyway.clean-disabled", () -> "false");
         registry.add("spring.datasource.hikari.maximum-pool-size", () -> "12");

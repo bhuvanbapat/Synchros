@@ -1,4 +1,4 @@
-﻿package com.Synchros.common;
+package com.synchros.common;
 
 /**
  * Structured domain error carrying a stable machine-readable code

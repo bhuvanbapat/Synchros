@@ -1,4 +1,4 @@
-﻿package com.Synchros.security;
+package com.synchros.security;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

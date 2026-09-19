@@ -1,4 +1,4 @@
-﻿package com.Synchros.kafka;
+package com.synchros.kafka;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;

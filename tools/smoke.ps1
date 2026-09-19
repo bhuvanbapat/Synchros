@@ -1,4 +1,4 @@
-﻿# FlashReserve live JWT + HMAC smoke test (run against a live app on :8081)
+# Synchros live JWT + HMAC smoke test (run against a live app on :8081)
 $ErrorActionPreference = 'Stop'
 $base = 'http://localhost:8081'
 $ct = @{ 'Content-Type' = 'application/json' }

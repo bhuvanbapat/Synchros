@@ -1,4 +1,4 @@
-﻿package com.Synchros.user;
+package com.synchros.user;
 
 import jakarta.persistence.*;
 

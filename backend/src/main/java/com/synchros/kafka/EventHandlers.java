@@ -1,4 +1,4 @@
-﻿package com.Synchros.kafka;
+package com.synchros.kafka;
 
 import tools.jackson.databind.JsonNode;
 import org.slf4j.Logger;
@@ -24,12 +24,12 @@ public class EventHandlers {
     public static final String GROUP = "Synchros";
 
     private final ProcessedEventRepository processedRepository;
-    private final com.Synchros.notification.NotificationService notificationService;
-    private final com.Synchros.analytics.AnalyticsService analyticsService;
+    private final com.synchros.notification.NotificationService notificationService;
+    private final com.synchros.analytics.AnalyticsService analyticsService;
 
     public EventHandlers(ProcessedEventRepository processedRepository,
-                         com.Synchros.notification.NotificationService notificationService,
-                         com.Synchros.analytics.AnalyticsService analyticsService) {
+                         com.synchros.notification.NotificationService notificationService,
+                         com.synchros.analytics.AnalyticsService analyticsService) {
         this.processedRepository = processedRepository;
         this.notificationService = notificationService;
         this.analyticsService = analyticsService;

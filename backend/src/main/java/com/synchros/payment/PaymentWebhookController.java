@@ -1,7 +1,7 @@
-﻿package com.Synchros.payment;
+package com.synchros.payment;
 
 import tools.jackson.databind.ObjectMapper;
-import com.Synchros.common.DomainException;
+import com.synchros.common.DomainException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

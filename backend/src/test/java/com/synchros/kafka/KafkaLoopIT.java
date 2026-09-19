@@ -1,9 +1,9 @@
-﻿package com.Synchros.kafka;
+package com.synchros.kafka;
 
-import com.Synchros.outbox.SynchrosTopics;
-import com.Synchros.outbox.OutboxEvent;
-import com.Synchros.outbox.OutboxPublisher;
-import com.Synchros.outbox.OutboxRepository;
+import com.synchros.outbox.SynchrosTopics;
+import com.synchros.outbox.OutboxEvent;
+import com.synchros.outbox.OutboxPublisher;
+import com.synchros.outbox.OutboxRepository;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -42,13 +42,13 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE,
         properties = {
-                "Synchros.kafka.enabled=true",
+                "synchros.kafka.enabled=true",
                 // Keep the publisher BEAN present (its @ConditionalOnProperty
                 // keys off jobs.enabled) but push the scheduler interval far
                 // beyond the test run — publication is driven manually.
-                "Synchros.jobs.enabled=true",
-                "Synchros.outbox.poll-interval-ms=3600000",
-                "Synchros.expiration.scan-interval-ms=3600000",
+                "synchros.jobs.enabled=true",
+                "synchros.outbox.poll-interval-ms=3600000",
+                "synchros.expiration.scan-interval-ms=3600000",
                 "spring.kafka.consumer.auto-offset-reset=earliest",
         })
 class KafkaLoopIT {
@@ -92,13 +92,13 @@ class KafkaLoopIT {
                     .forPorts(9092));
 
     static {
-        com.Synchros.it.PostgresIntegrationBase.postgres().start();
+        com.synchros.it.PostgresIntegrationBase.postgres().start();
         KAFKA.start();
     }
 
     @DynamicPropertySource
     static void props(DynamicPropertyRegistry registry) {
-        var pg = com.Synchros.it.PostgresIntegrationBase.postgres();
+        var pg = com.synchros.it.PostgresIntegrationBase.postgres();
         registry.add("spring.datasource.url", pg::getJdbcUrl);
         registry.add("spring.datasource.username", pg::getUsername);
         registry.add("spring.datasource.password", pg::getPassword);
@@ -107,13 +107,13 @@ class KafkaLoopIT {
                 + "org.springframework.boot.data.redis.autoconfigure.DataRedisRepositoriesAutoConfiguration");
         registry.add("spring.kafka.bootstrap-servers",
                 () -> "localhost:" + HOST_PORT);
-        registry.add("Synchros.kafka.enabled", () -> "true");
-        registry.add("Synchros.jobs.enabled", () -> "true");
-        registry.add("Synchros.outbox.poll-interval-ms", () -> "3600000");
-        registry.add("Synchros.expiration.scan-interval-ms", () -> "3600000");
-        registry.add("Synchros.jwt.secret",
+        registry.add("synchros.kafka.enabled", () -> "true");
+        registry.add("synchros.jobs.enabled", () -> "true");
+        registry.add("synchros.outbox.poll-interval-ms", () -> "3600000");
+        registry.add("synchros.expiration.scan-interval-ms", () -> "3600000");
+        registry.add("synchros.jwt.secret",
                 () -> "it-test-jwt-secret-0123456789-it-test-jwt-secret");
-        registry.add("Synchros.payment.webhook-secret",
+        registry.add("synchros.payment.webhook-secret",
                 () -> "it-test-webhook-secret-0123456789-it-test-wh");
     }
 
@@ -124,7 +124,7 @@ class KafkaLoopIT {
     @Autowired ProcessedEventRepository processedRepo;
     @Autowired DeadLetterRepository deadLetterRepo;
     @Autowired ConsumerRetryRepository retryRepo;
-    @Autowired com.Synchros.notification.NotificationRepository notificationRepo;
+    @Autowired com.synchros.notification.NotificationRepository notificationRepo;
     @Autowired org.springframework.transaction.support.TransactionTemplate tx;
     @Autowired org.springframework.context.ApplicationContext applicationContext;
 

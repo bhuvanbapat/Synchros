@@ -1,4 +1,4 @@
-﻿package com.Synchros.concurrency;
+package com.synchros.concurrency;
 
 import org.junit.jupiter.api.Test;
 

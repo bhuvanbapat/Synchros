@@ -1,4 +1,4 @@
-﻿package com.Synchros.security;
+package com.synchros.security;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -34,10 +34,10 @@ public class JwtService {
     private final byte[] secret;
     private final long ttlSeconds;
 
-    public JwtService(@Value("${Synchros.jwt.secret:}") String secret,
-                      @Value("${Synchros.jwt.ttl-seconds:3600}") long ttlSeconds,
-                      com.Synchros.common.SecretPolicy secretPolicy) {
-        secretPolicy.check("Synchros.jwt.secret (JWT_SECRET)", secret);
+    public JwtService(@Value("${synchros.jwt.secret:}") String secret,
+                      @Value("${synchros.jwt.ttl-seconds:3600}") long ttlSeconds,
+                      com.synchros.common.SecretPolicy secretPolicy) {
+        secretPolicy.check("synchros.jwt.secret (JWT_SECRET)", secret);
         this.secret = secret.getBytes(StandardCharsets.UTF_8);
         this.ttlSeconds = ttlSeconds;
     }

@@ -1,4 +1,4 @@
-﻿package com.Synchros.audit;
+package com.synchros.audit;
 
 import tools.jackson.databind.ObjectMapper;
 import org.slf4j.MDC;

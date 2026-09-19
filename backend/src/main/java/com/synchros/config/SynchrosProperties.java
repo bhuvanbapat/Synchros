@@ -1,9 +1,9 @@
-﻿package com.Synchros.config;
+package com.synchros.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-/** Type-safe application properties (Synchros.* in application.yml). */
-@ConfigurationProperties(prefix = "Synchros")
+/** Type-safe application properties (synchros.* in application.yml). */
+@ConfigurationProperties(prefix = "synchros")
 public class SynchrosProperties {
 
     private int holdDurationSeconds = 120;

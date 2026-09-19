@@ -1,4 +1,4 @@
-﻿package com.Synchros.it;
+package com.synchros.it;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,11 +19,11 @@ import static org.junit.jupiter.api.Assertions.*;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 class EventStateGateIT extends PostgresIntegrationBase {
 
-    @Autowired com.Synchros.reservation.ReservationService reservations;
-    @Autowired com.Synchros.catalog.CatalogService catalogService;
+    @Autowired com.synchros.reservation.ReservationService reservations;
+    @Autowired com.synchros.catalog.CatalogService catalogService;
 
-    private com.Synchros.catalog.Event newEvent(String state, Instant onSaleAt) {
-        com.Synchros.catalog.Event e = new com.Synchros.catalog.Event();
+    private com.synchros.catalog.Event newEvent(String state, Instant onSaleAt) {
+        com.synchros.catalog.Event e = new com.synchros.catalog.Event();
         set(e, "venueId", 1L);
         set(e, "name", "gate-test-" + UUID.randomUUID());
         set(e, "startsAt", Instant.now().plusSeconds(86_400));
@@ -43,43 +43,43 @@ class EventStateGateIT extends PostgresIntegrationBase {
 
     @Test
     void cancelledEventRefusesReservations() {
-        var ex = assertThrows(com.Synchros.common.DomainException.class,
+        var ex = assertThrows(com.synchros.common.DomainException.class,
                 () -> reservations.create(1L, newEvent("CANCELLED", Instant.now().minusSeconds(3600)),
                         "FLOOR", 1));
-        assertEquals(com.Synchros.common.DomainException.ErrorCode.EVENT_NOT_RESERVABLE, ex.getCode());
+        assertEquals(com.synchros.common.DomainException.ErrorCode.EVENT_NOT_RESERVABLE, ex.getCode());
     }
 
     @Test
     void soldOutEventRefusesReservations() {
-        assertThrows(com.Synchros.common.DomainException.class,
+        assertThrows(com.synchros.common.DomainException.class,
                 () -> reservations.create(1L, newEvent("SOLD_OUT", Instant.now().minusSeconds(3600)),
                         "FLOOR", 1));
     }
 
     @Test
     void concludedEventRefusesReservations() {
-        assertThrows(com.Synchros.common.DomainException.class,
+        assertThrows(com.synchros.common.DomainException.class,
                 () -> reservations.create(1L, newEvent("CONCLUDED", Instant.now().minusSeconds(3600)),
                         "FLOOR", 1));
     }
 
     @Test
     void futureOnSaleAtRefusesReservations() {
-        var ex = assertThrows(com.Synchros.common.DomainException.class,
+        var ex = assertThrows(com.synchros.common.DomainException.class,
                 () -> reservations.create(1L, newEvent("ON_SALE", Instant.now().plusSeconds(3600)),
                         "FLOOR", 1));
-        assertEquals(com.Synchros.common.DomainException.ErrorCode.EVENT_NOT_RESERVABLE, ex.getCode());
+        assertEquals(com.synchros.common.DomainException.ErrorCode.EVENT_NOT_RESERVABLE, ex.getCode());
     }
 
     @Test
     void scheduledOnSaleEventStillReserves() {
         // Happy path must not regress: the V2-seeded event is ON_SALE with
         // its sales window open and a real FLOOR pool — it must reserve.
-        com.Synchros.catalog.Event seeded =
+        com.synchros.catalog.Event seeded =
                 catalogService.findEventByDbId(1L).orElseThrow();
         var reservation = reservations.create(2L, seeded, "FLOOR", 1);
         assertNotNull(reservation.getPublicId());
-        assertEquals(com.Synchros.reservation.Reservation.State.HELD,
+        assertEquals(com.synchros.reservation.Reservation.State.HELD,
                 reservation.getState());
     }
 }

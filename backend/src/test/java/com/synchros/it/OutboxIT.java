@@ -1,7 +1,7 @@
-﻿package com.Synchros.it;
+package com.synchros.it;
 
-import com.Synchros.outbox.OutboxEvent;
-import com.Synchros.outbox.OutboxRepository;
+import com.synchros.outbox.OutboxEvent;
+import com.synchros.outbox.OutboxRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

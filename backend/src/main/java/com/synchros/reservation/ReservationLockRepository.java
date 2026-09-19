@@ -1,4 +1,4 @@
-﻿package com.Synchros.reservation;
+package com.synchros.reservation;
 
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;

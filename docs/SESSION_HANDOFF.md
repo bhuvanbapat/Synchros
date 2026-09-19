@@ -1,4 +1,4 @@
-﻿# SESSION HANDOFF — READ THIS FIRST (before touching ANY code)
+# SESSION HANDOFF — READ THIS FIRST (before touching ANY code)
 
 This file exists so a fresh session NEVER re-diagnoses solved problems,
 NEVER re-breaks fixed code, and NEVER "fixes" what isn't broken.
@@ -45,7 +45,7 @@ every claim are at the bottom — run them, don't re-derive them.
 - **Login limiter FAILS OPEN** when Redis is down (availability of login >
   strictness of a counter). Same for RedisRateLimiter. Deliberate.
 - **`@Profile("span-probe")` was dead code** → replaced by
-  `@ConditionalOnProperty(Synchros.span-probe.enabled)`. Dormant by
+  `@ConditionalOnProperty(synchros.span-probe.enabled)`. Dormant by
   default is the point.
 - **Consumers exclude Redis in most ITs by design** (fail-open paths
   don't need it); only RedisRateLimitCacheIT boots real Redis.
@@ -95,14 +95,14 @@ every claim are at the bottom — run them, don't re-derive them.
   markFailed no longer clears the lease itself.
 
 ### 2.7 Login response hardcoded `expiresIn: 3600`
-- **Cause:** AuthController ignored `Synchros.jwt.ttl-seconds`; k6
+- **Cause:** AuthController ignored `synchros.jwt.ttl-seconds`; k6
   helpers cache tokens off expiresIn → a shortened TTL would break long
   benchmarks mid-flight.
 - **Fix:** inject the configured TTL and return it.
 
 ### 2.8 SpanProbeController unreachable (dead endpoint)
 - Was `@Profile("span-probe")` — nothing activates that profile.
-- **Fix:** `@ConditionalOnProperty("Synchros.span-probe.enabled")`,
+- **Fix:** `@ConditionalOnProperty("synchros.span-probe.enabled")`,
   JWT-protected, documented, exercised in the live tracing drill.
 
 ### 2.9 OTLP METRICS registry noise-POSTing localhost:4318 every 60s
@@ -193,7 +193,7 @@ docker network connect Synchros_default Synchros-otel-collector
 #       SPAN_PROBE_ENABLED=true
 docker compose up -d --force-recreate app
 # login, POST /api/dev/span-probe with Bearer; then:
-docker logs Synchros-otel-collector --since 3m   # must show Synchros.span-probe spans
+docker logs Synchros-otel-collector --since 3m   # must show synchros.span-probe spans
 ```
 
 **Pass state as of 2026-09-07:** backend 87/87 · frontend 6/6 + build

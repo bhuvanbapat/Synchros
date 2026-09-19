@@ -1,4 +1,4 @@
-﻿# Synchros — High-Concurrency Reservation & Inventory Platform
+# Synchros — High-Concurrency Reservation & Inventory Platform
 
 > **Agents / new sessions:** read [`docs/SESSION_HANDOFF.md`](docs/SESSION_HANDOFF.md)
 > FIRST. It is the complete registry of solved bugs, environment traps,
@@ -72,7 +72,7 @@ cd frontend && npm install && npm run dev   # http://localhost:5173
 ```
 
 Demo accounts (password `password`): `alice@example.com`,
-`bob@example.com`, `admin@Synchros.dev` (admin).
+`bob@example.com`, `admin@synchros.dev` (admin).
 
 ## The core demo
 

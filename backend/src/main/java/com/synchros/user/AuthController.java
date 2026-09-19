@@ -1,6 +1,6 @@
-﻿package com.Synchros.user;
+package com.synchros.user;
 
-import com.Synchros.security.JwtService;
+import com.synchros.security.JwtService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,7 +23,7 @@ public class AuthController {
 
     public AuthController(UserService userService, JwtService jwtService,
                           @org.springframework.beans.factory.annotation.Value(
-                                  "${Synchros.jwt.ttl-seconds:3600}") long ttlSeconds) {
+                                  "${synchros.jwt.ttl-seconds:3600}") long ttlSeconds) {
         this.userService = userService;
         this.jwtService = jwtService;
         this.ttlSeconds = ttlSeconds;

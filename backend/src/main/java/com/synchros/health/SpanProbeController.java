@@ -1,4 +1,4 @@
-﻿package com.Synchros.health;
+package com.synchros.health;
 
 import io.opentelemetry.api.trace.Tracer;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -18,7 +18,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/dev")
-@ConditionalOnProperty(name = "Synchros.span-probe.enabled", havingValue = "true")
+@ConditionalOnProperty(name = "synchros.span-probe.enabled", havingValue = "true")
 public class SpanProbeController {
 
     private final Tracer tracer;
@@ -29,7 +29,7 @@ public class SpanProbeController {
 
     @PostMapping("/span-probe")
     public Map<String, String> probe() {
-        var span = tracer.spanBuilder("Synchros.span-probe").startSpan();
+        var span = tracer.spanBuilder("synchros.span-probe").startSpan();
         try (var scope = span.makeCurrent()) {
             span.setAttribute("probe", "manual");
         } finally {

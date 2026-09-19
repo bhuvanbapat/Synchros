@@ -1,4 +1,4 @@
-﻿package com.Synchros.notification;
+package com.synchros.notification;
 
 import jakarta.persistence.*;
 

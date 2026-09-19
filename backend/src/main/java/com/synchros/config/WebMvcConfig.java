@@ -1,6 +1,6 @@
-﻿package com.Synchros.config;
+package com.synchros.config;
 
-import com.Synchros.security.CurrentUserArgumentResolver;
+import com.synchros.security.CurrentUserArgumentResolver;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;

@@ -1,6 +1,6 @@
-﻿package com.Synchros.it;
+package com.synchros.it;
 
-import com.Synchros.idempotency.IdempotencyService;
+import com.synchros.idempotency.IdempotencyService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -40,7 +40,7 @@ class IdempotencyIT extends PostgresIntegrationBase {
         idempotencyService.complete(((IdempotencyService.Fresh) first).claimed(), 201,
                 java.util.Map.of());
 
-        assertThrows(com.Synchros.common.DomainException.class,
+        assertThrows(com.synchros.common.DomainException.class,
                 () -> idempotencyService.begin(user, "CREATE_RESERVATION", key, "hash-b"),
                 "different body with same key must conflict");
     }

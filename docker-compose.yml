@@ -1,4 +1,4 @@
-﻿# Synchros — single node, full stack.
+# Synchros — single node, full stack.
 # Project-isolated: `name: Synchros` namespaces all containers/networks/volumes.
 # Ports chosen after scanning the host: 5432/6379/9092 were free; the app uses
 # 8081 because 8080 is claimed by unrelated local tooling (kind cluster).

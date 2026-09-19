@@ -1,4 +1,4 @@
-﻿package com.Synchros.config;
+package com.synchros.config;
 
 import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
 import org.springframework.beans.factory.annotation.Value;

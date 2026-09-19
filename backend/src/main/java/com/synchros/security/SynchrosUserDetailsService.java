@@ -1,6 +1,6 @@
-﻿package com.Synchros.security;
+package com.synchros.security;
 
-import com.Synchros.user.UserRepository;
+import com.synchros.user.UserRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;

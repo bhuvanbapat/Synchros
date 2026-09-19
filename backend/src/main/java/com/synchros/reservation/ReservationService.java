@@ -1,12 +1,12 @@
-﻿package com.Synchros.reservation;
+package com.synchros.reservation;
 
-import com.Synchros.audit.AuditService;
-import com.Synchros.common.DomainException;
-import com.Synchros.common.NotFoundException;
-import com.Synchros.config.SynchrosProperties;
-import com.Synchros.outbox.OutboxService;
-import com.Synchros.inventory.InventoryPool;
-import com.Synchros.inventory.InventoryPoolRepository;
+import com.synchros.audit.AuditService;
+import com.synchros.common.DomainException;
+import com.synchros.common.NotFoundException;
+import com.synchros.config.SynchrosProperties;
+import com.synchros.outbox.OutboxService;
+import com.synchros.inventory.InventoryPool;
+import com.synchros.inventory.InventoryPoolRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -53,7 +53,7 @@ public class ReservationService {
     private final InventoryPoolRepository poolRepository;
     private final OutboxService outboxService;
     private final AuditService auditService;
-    private final com.Synchros.metrics.SynchrosMetrics metrics;
+    private final com.synchros.metrics.SynchrosMetrics metrics;
     private final SynchrosProperties props;
 
     public ReservationService(ReservationRepository reservationRepository,
@@ -61,7 +61,7 @@ public class ReservationService {
                               InventoryPoolRepository poolRepository,
                               OutboxService outboxService,
                               AuditService auditService,
-                              com.Synchros.metrics.SynchrosMetrics metrics,
+                              com.synchros.metrics.SynchrosMetrics metrics,
                               SynchrosProperties props) {
         this.reservationRepository = reservationRepository;
         this.lockRepository = lockRepository;
@@ -127,7 +127,7 @@ public class ReservationService {
 
     /** Public typed create (validates section/pool by public event id). */
     @Transactional
-    public Reservation create(Long userId, com.Synchros.catalog.Event event,
+    public Reservation create(Long userId, com.synchros.catalog.Event event,
                                String section, int quantity) {
         // Event-state gate: only SCHEDULED/ON_SALE events are reservable.
         // The DB CHECK constraint defines the vocabulary; the engine now

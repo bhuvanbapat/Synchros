@@ -1,4 +1,4 @@
-﻿# Demo Walkthrough
+# Demo Walkthrough
 
 Everything below was executed and verified against the running stack.
 
@@ -11,7 +11,7 @@ cd frontend && npm install && npm run dev       # UI on :5173 (proxies /api)
 ```
 
 Demo accounts (password `password`): `alice@example.com`,
-`bob@example.com`, `admin@Synchros.dev`.
+`bob@example.com`, `admin@synchros.dev`.
 
 ## 0a. Log in (JWT — every later call is Bearer)
 
@@ -124,7 +124,7 @@ the `ReservationConfirmed` notification produced by the Kafka consumer
 ```powershell
 $adminTok = (Invoke-RestMethod http://localhost:8081/api/auth/login -Method Post `
         -ContentType 'application/json' `
-        -Body '{"email":"admin@Synchros.dev","password":"password"}').accessToken
+        -Body '{"email":"admin@synchros.dev","password":"password"}').accessToken
 $adminH = @{ Authorization = "Bearer $adminTok" }
 Invoke-RestMethod http://localhost:8081/api/admin/audit?limit=20 -Headers $adminH
 Invoke-RestMethod http://localhost:8081/api/admin/metrics   -Headers $adminH

@@ -1,4 +1,4 @@
-﻿package com.Synchros.common;
+package com.synchros.common;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
@@ -24,7 +24,7 @@ public class SecretPolicy {
     private final boolean prodLike;
 
     public SecretPolicy(Environment env,
-                        @Value("${Synchros.secret-policy.enforce-non-dev:true}")
+                        @Value("${synchros.secret-policy.enforce-non-dev:true}")
                         boolean enforceNonDev) {
         // Any profile other than the local-dev defaults counts as prod-like;
         // explicit opt-out exists for machines that genuinely want the demo.

@@ -1,4 +1,4 @@
-﻿package com.Synchros.catalog;
+package com.synchros.catalog;
 
 import java.time.Instant;
 import java.util.UUID;

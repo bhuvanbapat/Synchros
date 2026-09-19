@@ -1,4 +1,4 @@
-﻿# Synchros — Complete Project Reference
+# Synchros — Complete Project Reference
 
 Ultra-detailed inventory of everything in this repository. Every claim
 here is verifiable against the code it describes.
@@ -192,7 +192,7 @@ frozen; changes only ever as new migrations.
 | `OUTBOX_POLL_INTERVAL_MS / MAX_RETRIES` | 500 / 10 | publisher drain + retry bound |
 | `PAYMENT_SUCCESS/FAILURE/TIMEOUT_WEIGHT` | 0.85/0.10/0.05 | mock gateway distribution |
 | `Synchros_SCHEDULING_ENABLED` | true | jobs on/off (tests: off) |
-| `Synchros.kafka.enabled` | true | listeners + publisher on/off (tests: off) |
+| `synchros.kafka.enabled` | true | listeners + publisher on/off (tests: off) |
 | `FRONTEND_ORIGIN` | http://localhost:5173 | CORS allow-list entry |
 
 Tomcat threads 200 / Hikari pool 40 (tuned for the 500-VU benchmark).

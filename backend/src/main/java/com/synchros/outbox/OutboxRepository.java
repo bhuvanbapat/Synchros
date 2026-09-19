@@ -1,4 +1,4 @@
-﻿package com.Synchros.outbox;
+package com.synchros.outbox;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;

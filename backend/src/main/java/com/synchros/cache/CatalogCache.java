@@ -1,4 +1,4 @@
-﻿package com.Synchros.cache;
+package com.synchros.cache;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;

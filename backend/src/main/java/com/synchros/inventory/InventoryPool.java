@@ -1,4 +1,4 @@
-﻿package com.Synchros.inventory;
+package com.synchros.inventory;
 
 import jakarta.persistence.*;
 

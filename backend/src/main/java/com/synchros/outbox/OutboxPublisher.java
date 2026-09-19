@@ -1,4 +1,4 @@
-﻿package com.Synchros.outbox;
+package com.synchros.outbox;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,8 +35,8 @@ import java.util.List;
  * the pool and turned "Kafka down" into "site down".
  */
 @Component
-@Conditional(com.Synchros.kafka.ConditionalOnKafkaEnabled.class)
-@ConditionalOnProperty(name = "Synchros.jobs.enabled", havingValue = "true", matchIfMissing = true)
+@Conditional(com.synchros.kafka.ConditionalOnKafkaEnabled.class)
+@ConditionalOnProperty(name = "synchros.jobs.enabled", havingValue = "true", matchIfMissing = true)
 public class OutboxPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxPublisher.class);
@@ -55,7 +55,7 @@ public class OutboxPublisher {
                            KafkaTemplate<String, String> kafkaTemplate,
                            SynchrosTopics topics,
                            TransactionTemplate tx,
-                           com.Synchros.config.SynchrosProperties props) {
+                           com.synchros.config.SynchrosProperties props) {
         this.outboxRepository = outboxRepository;
         this.kafkaTemplate = kafkaTemplate;
         this.topics = topics;
@@ -63,7 +63,7 @@ public class OutboxPublisher {
         this.maxRetries = props.getOutbox().getMaxRetries();
     }
 
-    @Scheduled(fixedDelayString = "${Synchros.outbox.poll-interval-ms:500}")
+    @Scheduled(fixedDelayString = "${synchros.outbox.poll-interval-ms:500}")
     public void publishPending() {
         // 1) Claim a disjoint batch (short tx): SKIP LOCKED + an explicit
         //    lease so a second instance cannot re-send rows this instance

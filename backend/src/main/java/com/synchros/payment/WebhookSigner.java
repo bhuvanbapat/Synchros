@@ -1,6 +1,6 @@
-﻿package com.Synchros.payment;
+package com.synchros.payment;
 
-import com.Synchros.common.DomainException;
+import com.synchros.common.DomainException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -34,12 +34,12 @@ public class WebhookSigner {
     private final byte[] secret;
     private final long toleranceSeconds;
 
-    public WebhookSigner(@Value("${Synchros.payment.webhook-secret:}") String secret,
-                          @Value("${Synchros.payment.webhook-replay-tolerance-seconds:300}")
+    public WebhookSigner(@Value("${synchros.payment.webhook-secret:}") String secret,
+                          @Value("${synchros.payment.webhook-replay-tolerance-seconds:300}")
                           long toleranceSeconds,
-                          com.Synchros.common.SecretPolicy secretPolicy) {
+                          com.synchros.common.SecretPolicy secretPolicy) {
         secretPolicy.check(
-                "Synchros.payment.webhook-secret (PAYMENT_WEBHOOK_SECRET)", secret);
+                "synchros.payment.webhook-secret (PAYMENT_WEBHOOK_SECRET)", secret);
         this.secret = secret.getBytes(StandardCharsets.UTF_8);
         this.toleranceSeconds = toleranceSeconds;
     }

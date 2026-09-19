@@ -1,7 +1,7 @@
-﻿package com.Synchros.redis;
+package com.synchros.redis;
 
-import com.Synchros.cache.CatalogCache;
-import com.Synchros.security.LoginAttemptLimiter;
+import com.synchros.cache.CatalogCache;
+import com.synchros.security.LoginAttemptLimiter;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -29,11 +29,11 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE,
         properties = {
-                "Synchros.jobs.enabled=false",
-                "Synchros.kafka.enabled=false",
+                "synchros.jobs.enabled=false",
+                "synchros.kafka.enabled=false",
                 // Tiny bucket so the boundary is reachable in one test.
-                "Synchros.rate-limit.reservations-per-minute=12",
-                "Synchros.rate-limit.burst=3",
+                "synchros.rate-limit.reservations-per-minute=12",
+                "synchros.rate-limit.burst=3",
         })
 class RedisRateLimitCacheIT {
 
@@ -42,13 +42,13 @@ class RedisRateLimitCacheIT {
             .withExposedPorts(6379);
 
     static {
-        com.Synchros.it.PostgresIntegrationBase.postgres().start();
+        com.synchros.it.PostgresIntegrationBase.postgres().start();
         REDIS.start();
     }
 
     @DynamicPropertySource
     static void props(DynamicPropertyRegistry registry) {
-        var pg = com.Synchros.it.PostgresIntegrationBase.postgres();
+        var pg = com.synchros.it.PostgresIntegrationBase.postgres();
         registry.add("spring.datasource.url", pg::getJdbcUrl);
         registry.add("spring.datasource.username", pg::getUsername);
         registry.add("spring.datasource.password", pg::getPassword);
@@ -56,15 +56,15 @@ class RedisRateLimitCacheIT {
         registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
         registry.add("spring.autoconfigure.exclude", () ->
                 "org.springframework.boot.kafka.autoconfigure.KafkaAutoConfiguration");
-        registry.add("Synchros.jobs.enabled", () -> "false");
-        registry.add("Synchros.kafka.enabled", () -> "false");
-        registry.add("Synchros.jwt.secret",
+        registry.add("synchros.jobs.enabled", () -> "false");
+        registry.add("synchros.kafka.enabled", () -> "false");
+        registry.add("synchros.jwt.secret",
                 () -> "it-test-jwt-secret-0123456789-it-test-jwt-secret");
-        registry.add("Synchros.payment.webhook-secret",
+        registry.add("synchros.payment.webhook-secret",
                 () -> "it-test-webhook-secret-0123456789-it-test-wh");
     }
 
-    @Autowired com.Synchros.ratelimit.RedisRateLimiter limiter;
+    @Autowired com.synchros.ratelimit.RedisRateLimiter limiter;
     @Autowired CatalogCache cache;
     @Autowired LoginAttemptLimiter loginLimiter;
     @Autowired StringRedisTemplate redis;

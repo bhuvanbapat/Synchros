@@ -1,4 +1,4 @@
-﻿# BUILD STATUS
+# BUILD STATUS
 
 Living checklist — updated as work completes. Last full verification:
 2026-09-07 (all measurements taken live on this machine, never invented).
@@ -104,7 +104,7 @@ Living checklist — updated as work completes. Last full verification:
 - [x] OTLP metrics push disabled by default (was noise-POSTing localhost:4318 every 60s)
 - [x] JWT-protected span probe (POST /api/dev/span-probe, SPAN_PROBE_ENABLED) proves
       exporter wiring independently of HTTP observation
-- [x] **Live drill: Synchros.span-probe + HTTP authorize-request + outbox scheduler
+- [x] **Live drill: synchros.span-probe + HTTP authorize-request + outbox scheduler
       spans received and printed by the shipped collector (v0.160, OTLP/HTTP + gRPC)**
 
 ## Live smoke drill (tools/smoke.ps1 — 15 steps, all passing 2026-09-07)

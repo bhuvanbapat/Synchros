@@ -1,4 +1,4 @@
-﻿spring:
+spring:
   application:
     name: Synchros
   datasource:
@@ -76,7 +76,7 @@ management:
 
 logging:
   level:
-    com.Synchros: ${LOGGING_LEVEL_COM_Synchros:INFO}
+    com.synchros: ${LOGGING_LEVEL_COM_SYNCHROS:INFO}
   pattern:
     console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%X{requestId:-}] [%thread] %logger{36} - %msg%n"
 
@@ -84,7 +84,7 @@ Synchros:
   # Background jobs (expiration scan, outbox drain). Tests exercise these
   # synchronously, so they are disabled in the test profile to avoid racing
   # with assertions (see application-test.yml).
-  scheduling-enabled: ${Synchros_SCHEDULING_ENABLED:true}
+  scheduling-enabled: ${SYNCHROS_SCHEDULING_ENABLED:true}
   hold-duration-seconds: ${HOLD_DURATION_SECONDS:120}
   expiration:
     scan-interval-ms: ${EXPIRATION_SCAN_INTERVAL_MS:1000}

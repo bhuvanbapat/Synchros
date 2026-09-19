@@ -1,7 +1,7 @@
-﻿package com.Synchros.kafka;
+package com.synchros.kafka;
 
-import com.Synchros.analytics.AnalyticsService;
-import com.Synchros.notification.NotificationService;
+import com.synchros.analytics.AnalyticsService;
+import com.synchros.notification.NotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

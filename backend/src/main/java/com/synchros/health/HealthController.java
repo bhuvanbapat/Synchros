@@ -1,4 +1,4 @@
-﻿package com.Synchros.health;
+package com.synchros.health;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;

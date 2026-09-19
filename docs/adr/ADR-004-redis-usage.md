@@ -1,4 +1,4 @@
-﻿# ADR-004: Redis usage (cache + rate limit, fail-open, never authoritative)
+# ADR-004: Redis usage (cache + rate limit, fail-open, never authoritative)
 
 **Status:** Accepted
 

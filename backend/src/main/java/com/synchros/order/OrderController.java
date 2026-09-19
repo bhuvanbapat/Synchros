@@ -1,11 +1,11 @@
-﻿package com.Synchros.order;
+package com.synchros.order;
 
-import com.Synchros.common.DomainException;
-import com.Synchros.payment.MockPaymentGateway;
-import com.Synchros.payment.PaymentRelay;
-import com.Synchros.payment.PaymentSimulationDtos;
-import com.Synchros.security.CurrentUser;
-import com.Synchros.security.SynchrosUserDetails;
+import com.synchros.common.DomainException;
+import com.synchros.payment.MockPaymentGateway;
+import com.synchros.payment.PaymentRelay;
+import com.synchros.payment.PaymentSimulationDtos;
+import com.synchros.security.CurrentUser;
+import com.synchros.security.SynchrosUserDetails;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpStatus;

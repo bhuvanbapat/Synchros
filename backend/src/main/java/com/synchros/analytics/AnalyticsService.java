@@ -1,4 +1,4 @@
-﻿package com.Synchros.analytics;
+package com.synchros.analytics;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

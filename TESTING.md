@@ -1,4 +1,4 @@
-﻿# Synchros — How to Test Everything
+# Synchros — How to Test Everything
 
 Complete, executable testing guide — from one-command smoke checks to the
 full concurrency proofs. Every command here was run during the final
@@ -21,7 +21,7 @@ Invoke-RestMethod http://localhost:8081/actuator/health
 ```
 
 Demo accounts (password `password`): `alice@example.com`,
-`bob@example.com`, `admin@Synchros.dev`.
+`bob@example.com`, `admin@synchros.dev`.
 
 ---
 
@@ -175,7 +175,7 @@ Confirm-after-expiry must 409 (never 500):
 ```powershell
 $adminTok = (Invoke-RestMethod http://localhost:8081/api/auth/login -Method Post `
         -ContentType 'application/json' `
-        -Body '{"email":"admin@Synchros.dev","password":"password"}').accessToken
+        -Body '{"email":"admin@synchros.dev","password":"password"}').accessToken
 $adminH = @{ Authorization = "Bearer $adminTok" }
 
 Invoke-RestMethod http://localhost:8081/api/admin/metrics    -Headers $adminH   # pools w/ held+sold, reservation counts, outbox by state
@@ -307,7 +307,7 @@ Manual checklist mirroring the automated tests:
    state CANCELLED, availability restored.
 5. Trigger INVENTORY_UNAVAILABLE (reserve the 10-unit FLOOR 11×) →
    the error code is surfaced.
-6. Log in as `admin@Synchros.dev` → Admin tab: live pool numbers,
+6. Log in as `admin@synchros.dev` → Admin tab: live pool numbers,
    reservation/outbox counts, dead letters, Run reconciliation → result line.
 
 Automated: `npm test -- --run --pool=threads` (5 tests cover items 2–5).

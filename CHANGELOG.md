@@ -1,6 +1,6 @@
-﻿# Changelog
+# Changelog
 
-All notable changes to Synchros. Format: Keep a Changelog; this
+All notable changes to synchros. Format: Keep a Changelog; this
 project does not use semantic versioning (portfolio project, see git log).
 
 ## [Unreleased] — second hardening pass (closing the documented-limitations tier)
@@ -86,7 +86,7 @@ project does not use semantic versioning (portfolio project, see git log).
   a FAILED row sat unleased; state flip + backoff lease now commit in
   one short transaction.
 - **Login response lied about token TTL** (`expiresIn` hardcoded 3600
-  regardless of `Synchros.jwt.ttl-seconds`) — k6 helpers cache
+  regardless of `synchros.jwt.ttl-seconds`) — k6 helpers cache
   tokens off `expiresIn`, so a shortened TTL would have broken
   long-running benchmarks mid-flight. Now the real configured value.
 - **`SpanProbeController` was unreachable** (gated on a profile nothing
@@ -106,7 +106,7 @@ project does not use semantic versioning (portfolio project, see git log).
   reconciliation consistent with 0 findings.
 - Live tracing drill: app with `OTEL_EXPORTER_OTLP_ENDPOINT` +
   `SPAN_PROBE_ENABLED=true` against the shipped collector —
-  `Synchros.span-probe`, HTTP `authorize request`, and scheduler
+  `synchros.span-probe`, HTTP `authorize request`, and scheduler
   spans all received and printed by the collector.
 - Outbox drained 838/838 events live post-fix; 0 FAILED/PENDING/DEAD.
 

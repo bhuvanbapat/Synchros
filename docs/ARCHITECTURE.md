@@ -1,4 +1,4 @@
-﻿# Synchros Architecture
+# Synchros Architecture
 
 ## System overview
 

@@ -1,20 +1,20 @@
-﻿package com.Synchros.admin;
+package com.synchros.admin;
 
-import com.Synchros.analytics.AnalyticsRepository;
-import com.Synchros.audit.AuditRepository;
-import com.Synchros.inventory.InventoryPool;
-import com.Synchros.inventory.InventoryPoolRepository;
-import com.Synchros.kafka.DeadLetter;
-import com.Synchros.kafka.DeadLetterRepository;
-import com.Synchros.outbox.OutboxEvent;
-import com.Synchros.outbox.OutboxRepository;
-import com.Synchros.outbox.OutboxService;
-import com.Synchros.reconciliation.ReconciliationService;
-import com.Synchros.reservation.Reservation;
-import com.Synchros.reservation.ReservationRepository;
-import com.Synchros.security.CurrentUser;
-import com.Synchros.security.SynchrosUserDetails;
-import com.Synchros.user.User;
+import com.synchros.analytics.AnalyticsRepository;
+import com.synchros.audit.AuditRepository;
+import com.synchros.inventory.InventoryPool;
+import com.synchros.inventory.InventoryPoolRepository;
+import com.synchros.kafka.DeadLetter;
+import com.synchros.kafka.DeadLetterRepository;
+import com.synchros.outbox.OutboxEvent;
+import com.synchros.outbox.OutboxRepository;
+import com.synchros.outbox.OutboxService;
+import com.synchros.reconciliation.ReconciliationService;
+import com.synchros.reservation.Reservation;
+import com.synchros.reservation.ReservationRepository;
+import com.synchros.security.CurrentUser;
+import com.synchros.security.SynchrosUserDetails;
+import com.synchros.user.User;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -38,8 +38,8 @@ public class AdminController {
     private final AuditRepository auditRepository;
     private final AnalyticsRepository analyticsRepository;
     private final ReconciliationService reconciliationService;
-    private final com.Synchros.idempotency.IdempotencyService idempotencyService;
-    private final com.Synchros.user.AccountAdminService accountAdminService;
+    private final com.synchros.idempotency.IdempotencyService idempotencyService;
+    private final com.synchros.user.AccountAdminService accountAdminService;
 
     public AdminController(InventoryPoolRepository poolRepository,
                            ReservationRepository reservationRepository,
@@ -48,8 +48,8 @@ public class AdminController {
                            AuditRepository auditRepository,
                            AnalyticsRepository analyticsRepository,
                            ReconciliationService reconciliationService,
-                           com.Synchros.idempotency.IdempotencyService idempotencyService,
-                           com.Synchros.user.AccountAdminService accountAdminService) {
+                           com.synchros.idempotency.IdempotencyService idempotencyService,
+                           com.synchros.user.AccountAdminService accountAdminService) {
         this.poolRepository = poolRepository;
         this.reservationRepository = reservationRepository;
         this.outboxRepository = outboxRepository;
@@ -152,8 +152,8 @@ public class AdminController {
             @RequestBody Map<String, String> body) {
         String target = body.get("accountState");
         if (target == null || target.isBlank()) {
-            throw new com.Synchros.common.DomainException(
-                    com.Synchros.common.DomainException.ErrorCode.INVALID_REQUEST,
+            throw new com.synchros.common.DomainException(
+                    com.synchros.common.DomainException.ErrorCode.INVALID_REQUEST,
                     "Body must carry accountState: ACTIVE | SUSPENDED");
         }
         User target_ = accountAdminService.setState(

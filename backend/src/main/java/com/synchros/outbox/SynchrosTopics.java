@@ -1,4 +1,4 @@
-﻿package com.Synchros.outbox;
+package com.synchros.outbox;
 
 import org.springframework.stereotype.Component;
 

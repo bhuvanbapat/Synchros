@@ -1,4 +1,4 @@
-﻿package com.Synchros.outbox;
+package com.synchros.outbox;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;

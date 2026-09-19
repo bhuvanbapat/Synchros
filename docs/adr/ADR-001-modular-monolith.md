@@ -1,4 +1,4 @@
-﻿# ADR-001: Modular monolith architecture
+# ADR-001: Modular monolith architecture
 
 **Status:** Accepted
 
@@ -11,7 +11,7 @@ single-team portfolio project with one deployment story.
 ## Decision
 
 Build a **modular monolith**: one Spring Boot application, hard package
-boundaries (`com.Synchros.<module>`), dependencies pointing inward
+boundaries (`com.synchros.<module>`), dependencies pointing inward
 (controller → service → repository), no service reaching into another
 module's repository. Kafka is the only sanctioned cross-aggregate
 reaction channel, and it never carries inventory ownership decisions.

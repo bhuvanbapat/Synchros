@@ -1,6 +1,6 @@
-﻿package com.Synchros.reconciliation;
+package com.synchros.reconciliation;
 
-import com.Synchros.metrics.SynchrosMetrics;
+import com.synchros.metrics.SynchrosMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
  * without any human pressing the button.
  */
 @Component
-@ConditionalOnProperty(name = "Synchros.jobs.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "synchros.jobs.enabled", havingValue = "true", matchIfMissing = true)
 public class ReconciliationJob {
 
     private static final Logger log = LoggerFactory.getLogger(ReconciliationJob.class);
@@ -30,7 +30,7 @@ public class ReconciliationJob {
         this.metrics = metrics;
     }
 
-    @Scheduled(fixedDelayString = "${Synchros.reconciliation.interval-ms:300000}")
+    @Scheduled(fixedDelayString = "${synchros.reconciliation.interval-ms:300000}")
     public void run() {
         try {
             var report = reconciliationService.reconcile();

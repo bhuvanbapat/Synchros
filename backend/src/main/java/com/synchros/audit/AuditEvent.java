@@ -1,4 +1,4 @@
-﻿package com.Synchros.audit;
+package com.synchros.audit;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;

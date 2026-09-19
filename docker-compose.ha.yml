@@ -1,4 +1,4 @@
-﻿# Synchros — HA variant: 3-node KRaft Kafka cluster + optional
+# Synchros — HA variant: 3-node KRaft Kafka cluster + optional
 # OpenTelemetry Collector for distributed tracing.
 #   docker compose -f docker-compose.ha.yml up -d
 # The base docker-compose.yml remains the single-node dev stack; this file
@@ -105,10 +105,10 @@ services:
         /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka-1:29092 2>/dev/null | grep -c '^kafka-[0-9]' || true;
         echo '== topics ==';
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:29092 --list;
-        echo '== describe Synchros.events ==';
-        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:29092 --describe --topic Synchros.events || true;
-        echo '== describe Synchros.notifications ==';
-        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:29092 --describe --topic Synchros.notifications || true;
-        echo '== describe Synchros.payments ==';
-        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:29092 --describe --topic Synchros.payments || true;
+        echo '== describe synchros.events ==';
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:29092 --describe --topic synchros.events || true;
+        echo '== describe synchros.notifications ==';
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:29092 --describe --topic synchros.notifications || true;
+        echo '== describe synchros.payments ==';
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-1:29092 --describe --topic synchros.payments || true;
         echo 'HA cluster ready: 3 brokers, RF=3, min.insync.replicas=2';

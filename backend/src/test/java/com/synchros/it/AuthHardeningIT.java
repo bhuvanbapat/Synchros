@@ -1,6 +1,6 @@
-﻿package com.Synchros.it;
+package com.synchros.it;
 
-import com.Synchros.security.JwtService;
+import com.synchros.security.JwtService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -8,7 +8,7 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
-import com.Synchros.payment.WebhookSigner;
+import com.synchros.payment.WebhookSigner;
 
 import java.time.Instant;
 
@@ -66,8 +66,8 @@ class AuthHardeningIT extends PostgresIntegrationBase {
         assertNull(jwtService.verify("aaa.bbb"));
     }
 
-    private static com.Synchros.common.SecretPolicy permissivePolicy() {
-        return new com.Synchros.common.SecretPolicy(
+    private static com.synchros.common.SecretPolicy permissivePolicy() {
+        return new com.synchros.common.SecretPolicy(
                 new org.springframework.mock.env.MockEnvironment(), false);
     }
 
@@ -99,19 +99,19 @@ class AuthHardeningIT extends PostgresIntegrationBase {
         assertTrue(t > 0);
 
         // Signature over different payload must fail
-        assertThrows(com.Synchros.common.DomainException.class,
+        assertThrows(com.synchros.common.DomainException.class,
                 () -> signer.verify("{\"orderId\":\"y\"}".getBytes(), sig));
         // Tampered signature must fail
         String tampered = sig.substring(0, sig.length() - 2) + "xx";
-        assertThrows(com.Synchros.common.DomainException.class,
+        assertThrows(com.synchros.common.DomainException.class,
                 () -> signer.verify(body, tampered));
         // Missing + garbage signatures fail
-        assertThrows(com.Synchros.common.DomainException.class,
+        assertThrows(com.synchros.common.DomainException.class,
                 () -> signer.verify(body, null));
-        assertThrows(com.Synchros.common.DomainException.class,
+        assertThrows(com.synchros.common.DomainException.class,
                 () -> signer.verify(body, "!!!not-a-signature!!!"));
         // Legacy bare base64 (pre-replay-window format) must be refused
-        assertThrows(com.Synchros.common.DomainException.class,
+        assertThrows(com.synchros.common.DomainException.class,
                 () -> signer.verify(body, java.util.Base64.getEncoder()
                         .encodeToString(new byte[32])));
     }
@@ -125,7 +125,7 @@ class AuthHardeningIT extends PostgresIntegrationBase {
         String fresh = signer.sign(body);
         long staleT = Instant.now().getEpochSecond() - 3600;
         String stale = fresh.replaceFirst("t=\\d+", "t=" + staleT);
-        assertThrows(com.Synchros.common.DomainException.class,
+        assertThrows(com.synchros.common.DomainException.class,
                 () -> signer.verify(body, stale));
     }
 

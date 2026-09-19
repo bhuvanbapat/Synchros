@@ -1,4 +1,4 @@
-﻿# Synchros — The Brutal, Honest Truth
+# Synchros — The Brutal, Honest Truth
 
 Every real limitation of this project, ranked by how much it would hurt
 in production. No marketing. Some of these are acceptable portfolio
@@ -131,7 +131,7 @@ bug; this pass closed the other three:
 ## 7. The reconciliation ~~is read-only~~ is scheduled and alertable now
 
 🟢→🟡 `ReconciliationJob` runs the full sweep every 5 minutes
-(`Synchros.reconciliation.interval-ms`), increments
+(`synchros.reconciliation.interval-ms`), increments
 `Synchros_reconciliation_findings` and flips the
 `Synchros_reconciliation_consistent` gauge to 0 on any finding —
 alertable from Prometheus with `consistent == 0`. Still read-only
@@ -203,7 +203,7 @@ scheduled reconciliation run now exports `Synchros_reconciliation_findings`
 / `_consistent` so an *alert rule* is one Prometheus expression away.
 Tracing is wired **and verified live end-to-end**: the opt-in OTLP/HTTP
 exporter + span probe delivered spans (HTTP `authorize request`, the
-outbox scheduler task, and `Synchros.span-probe`) into the shipped
+outbox scheduler task, and `synchros.span-probe`) into the shipped
 collector during the verification drill. Still honest: the repo ships
 **no dashboards, no alert rules, no SLOs** — the gauges exist; the
 dashboards are left as an exercise for the operator, and the collector

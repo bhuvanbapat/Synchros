@@ -1,4 +1,4 @@
-﻿package com.Synchros.catalog;
+package com.synchros.catalog;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

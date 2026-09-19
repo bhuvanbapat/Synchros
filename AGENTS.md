@@ -1,4 +1,4 @@
-﻿# Synchros — Agent Instructions
+# Synchros — Agent Instructions
 
 **Before doing ANYTHING in this repository, read
 [docs/SESSION_HANDOFF.md](docs/SESSION_HANDOFF.md).** It is the complete,

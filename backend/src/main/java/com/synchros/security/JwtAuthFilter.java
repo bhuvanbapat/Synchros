@@ -1,4 +1,4 @@
-﻿package com.Synchros.security;
+package com.synchros.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

@@ -1,7 +1,7 @@
-﻿package com.Synchros.user;
+package com.synchros.user;
 
-import com.Synchros.security.CurrentUser;
-import com.Synchros.security.SynchrosUserDetails;
+import com.synchros.security.CurrentUser;
+import com.synchros.security.SynchrosUserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -12,9 +12,9 @@ import java.util.List;
 @RequestMapping("/api/users")
 public class UserController {
 
-    private final com.Synchros.notification.NotificationService notificationService;
+    private final com.synchros.notification.NotificationService notificationService;
 
-    public UserController(com.Synchros.notification.NotificationService notificationService) {
+    public UserController(com.synchros.notification.NotificationService notificationService) {
         this.notificationService = notificationService;
     }
 

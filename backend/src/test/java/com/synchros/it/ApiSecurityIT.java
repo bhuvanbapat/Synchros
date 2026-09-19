@@ -1,4 +1,4 @@
-﻿package com.Synchros.it;
+package com.synchros.it;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,7 +8,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
-import com.Synchros.security.JwtService;
+import com.synchros.security.JwtService;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -74,7 +74,7 @@ class ApiSecurityIT extends PostgresIntegrationBase {
         // Issue directly with a negative-TTL instance: verification must
         // fail the expiry check and the API must return 401.
         var expired = new JwtService("test-secret-0123456789-test-secret-0123456789", -120,
-                new com.Synchros.common.SecretPolicy(
+                new com.synchros.common.SecretPolicy(
                         new org.springframework.mock.env.MockEnvironment(), false));
         String token = expired.issue(1L, "alice@example.com", "USER");
         int resp = rest().get().uri("/api/events")
@@ -91,7 +91,7 @@ class ApiSecurityIT extends PostgresIntegrationBase {
         assertEquals(403, userResp);
 
         int adminResp = rest().get().uri("/api/admin/metrics")
-                .headers(h -> h.setBearerAuth(bearer("admin@Synchros.dev", "password").replace("Bearer ", "")))
+                .headers(h -> h.setBearerAuth(bearer("admin@synchros.dev", "password").replace("Bearer ", "")))
                 .exchange((req, r) -> r.getStatusCode().value());
         assertEquals(200, adminResp);
     }

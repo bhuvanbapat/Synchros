@@ -1,4 +1,4 @@
-﻿package com.Synchros.idempotency;
+package com.synchros.idempotency;
 
 import org.junit.jupiter.api.Test;
 

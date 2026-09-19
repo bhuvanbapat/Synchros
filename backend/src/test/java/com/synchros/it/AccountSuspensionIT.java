@@ -1,6 +1,6 @@
-﻿package com.Synchros.it;
+package com.synchros.it;
 
-import com.Synchros.user.AccountAdminService;
+import com.synchros.user.AccountAdminService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -60,7 +60,7 @@ class AccountSuspensionIT extends PostgresIntegrationBase {
     @Test
     void suspensionBindsImmediatelyAndActivationRestores() {
         String bobToken = bearer("bob@example.com", "password");
-        String adminToken = bearer("admin@Synchros.dev", "password");
+        String adminToken = bearer("admin@synchros.dev", "password");
         String bobId = publicId("bob@example.com");
 
         // bob can call the API before suspension.
@@ -111,9 +111,9 @@ class AccountSuspensionIT extends PostgresIntegrationBase {
 
     @Test
     void selfSuspensionIsRefused() {
-        String adminToken = bearer("admin@Synchros.dev", "password");
+        String adminToken = bearer("admin@synchros.dev", "password");
         int status = rest().post().uri("/api/admin/users/"
-                        + publicId("admin@Synchros.dev") + "/state")
+                        + publicId("admin@synchros.dev") + "/state")
                 .headers(h -> h.setBearerAuth(adminToken))
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(Map.of("accountState", "SUSPENDED"))
@@ -123,7 +123,7 @@ class AccountSuspensionIT extends PostgresIntegrationBase {
 
     @Test
     void garbageStateValueIsRejected() {
-        String adminToken = bearer("admin@Synchros.dev", "password");
+        String adminToken = bearer("admin@synchros.dev", "password");
         int status = rest().post().uri("/api/admin/users/"
                         + publicId("bob@example.com") + "/state")
                 .headers(h -> h.setBearerAuth(adminToken))
@@ -135,7 +135,7 @@ class AccountSuspensionIT extends PostgresIntegrationBase {
 
     @Test
     void unknownUserIsNotFound() {
-        String adminToken = bearer("admin@Synchros.dev", "password");
+        String adminToken = bearer("admin@synchros.dev", "password");
         int status = rest().post().uri("/api/admin/users/" + UUID.randomUUID() + "/state")
                 .headers(h -> h.setBearerAuth(adminToken))
                 .contentType(MediaType.APPLICATION_JSON)

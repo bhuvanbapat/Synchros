@@ -1,6 +1,6 @@
-﻿package com.Synchros.security;
+package com.synchros.security;
 
-import com.Synchros.common.SecretPolicy;
+import com.synchros.common.SecretPolicy;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
 

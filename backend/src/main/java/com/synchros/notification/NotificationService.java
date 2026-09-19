@@ -1,4 +1,4 @@
-﻿package com.Synchros.notification;
+package com.synchros.notification;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -1,4 +1,4 @@
-﻿package com.Synchros.catalog;
+package com.synchros.catalog;
 
 import org.springframework.stereotype.Service;
 
@@ -20,7 +20,7 @@ public class CatalogService {
 
     public Event getEvent(UUID publicId) {
         return eventRepository.findByPublicId(publicId)
-                .orElseThrow(() -> new com.Synchros.common.NotFoundException(
+                .orElseThrow(() -> new com.synchros.common.NotFoundException(
                         "Event not found: " + publicId));
     }
 

@@ -1,4 +1,4 @@
-﻿# Resume Notes
+# Resume Notes
 
 ## One-paragraph description (for portfolios)
 
@@ -92,7 +92,7 @@ predicate into the claim SQL; multi-instance safety is now claim-atomic.
   transport clean 400; reconciliation consistent, 0 findings
   (tools/smoke.ps1).
 - **Live tracing drill**: opt-in OTLP/HTTP export verified end-to-end —
-  `Synchros.span-probe`, HTTP `authorize request`, and outbox
+  `synchros.span-probe`, HTTP `authorize request`, and outbox
   scheduler spans all received by the shipped collector.
 - **87 backend tests** (incl. real-broker KafkaLoopIT + real-Redis
   RedisRateLimitCacheIT) + **6 frontend tests**, all green.

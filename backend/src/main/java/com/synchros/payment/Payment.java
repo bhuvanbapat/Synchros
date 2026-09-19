@@ -1,4 +1,4 @@
-﻿package com.Synchros.payment;
+package com.synchros.payment;
 
 import jakarta.persistence.*;
 

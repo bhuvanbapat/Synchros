@@ -1,4 +1,4 @@
-﻿# Observability
+# Observability
 
 ## Request correlation
 
@@ -97,7 +97,7 @@ docker network connect Synchros_default Synchros-otel-collector  # bridge to the
 **Verification drill (run live 2026-09-07):** enable
 `SPAN_PROBE_ENABLED=true` alongside the endpoint, then
 `POST /api/dev/span-probe` with a bearer token. The probe emits one SDK
-span directly — if `Synchros.span-probe` appears in
+span directly — if `synchros.span-probe` appears in
 `docker logs Synchros-otel-collector`, exporter wiring is proven
 independently of HTTP-observation config. The same drill observed HTTP
 `authorize request` and `task outboxPublisher.publishPending` spans,
@@ -107,7 +107,7 @@ production.
 
 ## Reconciliation gauges (alertable)
 
-The scheduled sweep (every `Synchros.reconciliation.interval-ms`,
+The scheduled sweep (every `synchros.reconciliation.interval-ms`,
 default 5 min) exports two gauges to Prometheus:
 `Synchros_reconciliation_findings` (counter — every finding bumps it)
 and `Synchros_reconciliation_consistent` (1 = last run clean, 0 =

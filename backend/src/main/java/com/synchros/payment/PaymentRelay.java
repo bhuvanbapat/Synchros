@@ -1,7 +1,7 @@
-﻿package com.Synchros.payment;
+package com.synchros.payment;
 
-import com.Synchros.order.Order;
-import com.Synchros.order.OrderService;
+import com.synchros.order.Order;
+import com.synchros.order.OrderService;
 import tools.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

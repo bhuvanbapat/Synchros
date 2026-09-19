@@ -1,4 +1,4 @@
-﻿package com.Synchros.idempotency;
+package com.synchros.idempotency;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;

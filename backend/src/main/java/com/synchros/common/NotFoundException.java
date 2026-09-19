@@ -1,4 +1,4 @@
-﻿package com.Synchros.common;
+package com.synchros.common;
 
 import java.util.NoSuchElementException;
 

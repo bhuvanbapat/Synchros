@@ -1,4 +1,4 @@
-﻿package com.Synchros.security;
+package com.synchros.security;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;

@@ -1,4 +1,4 @@
-﻿package com.Synchros.metrics;
+package com.synchros.metrics;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;

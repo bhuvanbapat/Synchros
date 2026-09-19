@@ -1,4 +1,4 @@
-﻿package com.Synchros.security;
+package com.synchros.security;
 
 import org.springframework.core.MethodParameter;
 import org.springframework.core.annotation.Order;

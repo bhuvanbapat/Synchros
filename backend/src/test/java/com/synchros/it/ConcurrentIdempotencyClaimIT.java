@@ -1,6 +1,6 @@
-﻿package com.Synchros.it;
+package com.synchros.it;
 
-import com.Synchros.idempotency.IdempotencyService;
+import com.synchros.idempotency.IdempotencyService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

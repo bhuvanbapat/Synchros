@@ -1,4 +1,4 @@
-﻿// Shared helpers for FlashReserve load tests.
+// Shared helpers for Synchros load tests.
 import http from 'k6/http';
 import { Counter } from 'k6/metrics';
 

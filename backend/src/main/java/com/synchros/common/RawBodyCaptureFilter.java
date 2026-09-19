@@ -1,4 +1,4 @@
-﻿package com.Synchros.common;
+package com.synchros.common;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ReadListener;

@@ -1,11 +1,11 @@
-﻿package com.Synchros.reconciliation;
+package com.synchros.reconciliation;
 
-import com.Synchros.inventory.InventoryPool;
-import com.Synchros.inventory.InventoryPoolRepository;
-import com.Synchros.order.Order;
-import com.Synchros.order.OrderRepository;
-import com.Synchros.reservation.Reservation;
-import com.Synchros.reservation.ReservationRepository;
+import com.synchros.inventory.InventoryPool;
+import com.synchros.inventory.InventoryPoolRepository;
+import com.synchros.order.Order;
+import com.synchros.order.OrderRepository;
+import com.synchros.reservation.Reservation;
+import com.synchros.reservation.ReservationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;

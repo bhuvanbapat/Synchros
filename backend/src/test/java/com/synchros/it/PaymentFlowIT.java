@@ -1,12 +1,12 @@
-﻿package com.Synchros.it;
+package com.synchros.it;
 
-import com.Synchros.inventory.InventoryPool;
-import com.Synchros.inventory.InventoryPoolRepository;
-import com.Synchros.order.Order;
-import com.Synchros.order.OrderService;
-import com.Synchros.payment.MockPaymentGateway;
-import com.Synchros.reservation.Reservation;
-import com.Synchros.reservation.ReservationService;
+import com.synchros.inventory.InventoryPool;
+import com.synchros.inventory.InventoryPoolRepository;
+import com.synchros.order.Order;
+import com.synchros.order.OrderService;
+import com.synchros.payment.MockPaymentGateway;
+import com.synchros.reservation.Reservation;
+import com.synchros.reservation.ReservationService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -110,7 +110,7 @@ class PaymentFlowIT extends PostgresIntegrationBase {
     @Test
     void orderAccessEnforcesOwnership() {
         var setup = holdAndOrder();
-        assertThrows(com.Synchros.common.DomainException.class,
+        assertThrows(com.synchros.common.DomainException.class,
                 () -> orderService.getByPublicIdForUser(setup.order().getPublicId(), 999L),
                 "user 999 must not read user 1's order");
     }

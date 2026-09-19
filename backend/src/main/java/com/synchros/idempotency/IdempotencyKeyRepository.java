@@ -1,4 +1,4 @@
-﻿package com.Synchros.idempotency;
+package com.synchros.idempotency;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;

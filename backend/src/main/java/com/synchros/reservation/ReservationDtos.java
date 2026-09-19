@@ -1,4 +1,4 @@
-﻿package com.Synchros.reservation;
+package com.synchros.reservation;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
